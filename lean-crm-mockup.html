@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClickWise CRM — Lean v3</title>
+<style>
+  :root{
+    --bg:#eef1f4; --surface:#fff; --ink:#1f2733; --soft:#54606e; --faint:#8a94a1;
+    --line:#cdd4dc; --line2:#dde2e8; --accent:#2c5282; --accent-soft:#e8edf3;
+    --hot:#b23b3b; --hot-soft:#f6ebeb; --green:#2b7a4b; --green-soft:#e9f1eb;
+    --amber:#9a6510; --amber-soft:#f5efe2; --dead:#9aa3ae;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:13.5px;line-height:1.45;-webkit-font-smoothing:antialiased}
+  .app{display:flex;min-height:100vh}
+
+  .sidebar{width:188px;background:var(--surface);border-right:1px solid var(--line);padding:18px 12px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:3px}
+  .brand{display:flex;align-items:center;gap:8px;padding:4px 8px 16px;font-weight:700;font-size:15px;letter-spacing:-.2px}
+  .brand .dot{width:20px;height:20px;border-radius:2px;background:var(--accent)}
+  .nav{display:flex;align-items:center;gap:9px;padding:8px 11px;border-radius:2px;color:var(--soft);font-weight:500;cursor:pointer;border:none;background:none;width:100%;text-align:left;font-size:13.5px}
+  .nav:hover{background:var(--bg);color:var(--ink)}
+  .nav.active{background:var(--accent-soft);color:var(--accent);font-weight:600}
+  .nav .b{margin-left:auto;background:var(--hot);color:#fff;font-size:10.5px;font-weight:700;border-radius:2px;padding:1px 6px}
+  .nav-foot{margin-top:auto;padding:8px;font-size:11px;color:var(--faint);border-top:1px solid var(--line)}
+
+  .main{flex:1;padding:22px 26px;max-width:1360px}
+  .view{display:none} .view.active{display:block}
+  .head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px}
+  .head h1{font-size:18px;letter-spacing:-.3px}
+  .head .sub{color:var(--faint);font-size:12.5px}
+  .toolbar{display:flex;gap:8px;margin-bottom:12px;align-items:center}
+  .search{flex:1;max-width:280px;border:1px solid var(--line);border-radius:2px;padding:7px 11px;font-family:inherit;font-size:13px;background:var(--surface)}
+  .filt{border:1px solid var(--line);background:var(--surface);border-radius:2px;padding:7px 11px;font-size:12.5px;color:var(--soft);cursor:pointer}
+  .filt.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);font-weight:600}
+  .impbtn{margin-left:auto;background:var(--surface);color:var(--accent);border:1px solid var(--accent);border-radius:2px;padding:8px 14px;font-size:12.5px;font-weight:600;cursor:pointer}
+  .addbtn{background:var(--accent);color:#fff;border:none;border-radius:2px;padding:8px 14px;font-size:12.5px;font-weight:600;cursor:pointer}
+  .imp-report{border:1px solid #bcd2c3;background:var(--green-soft);color:#1f5c39;border-radius:2px;padding:9px 13px;font-size:12.5px;margin-bottom:12px}
+  .imp-report b{font-weight:700}
+  .imp-report .warn{color:var(--hot);font-weight:700}
+  .newrow input{border:1px solid var(--accent);border-radius:2px;padding:5px 7px;font-family:inherit;font-size:12.5px;width:100%;min-width:80px}
+  .newrow td{background:var(--accent-soft) !important}
+  .saverow{background:var(--accent);color:#fff;border:none;border-radius:2px;padding:5px 10px;font-weight:600;cursor:pointer;font-size:12px}
+
+  .tw{background:var(--surface);border:1px solid var(--line);border-radius:2px;overflow:auto}
+  table{border-collapse:collapse;width:100%;min-width:1180px}
+  th,td{padding:6px 10px;text-align:left;border-bottom:1px solid var(--line2);border-right:1px solid var(--line2);vertical-align:top}
+  th:last-child,td:last-child{border-right:none}
+  th{background:#dfe4ea;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#46525f;font-weight:700;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:2;white-space:nowrap}
+  .r-main{cursor:pointer}
+  .r-main:hover td{background:#fafbfd}
+  td.co{font-weight:600;position:sticky;left:0;background:var(--surface);z-index:1;white-space:nowrap}
+  .r-main:hover td.co{background:#fafbfd}
+  .dim{color:var(--soft)}
+  .fire{font-size:11px;margin-left:6px;vertical-align:0}
+  .row-dead td{color:var(--dead)} .row-dead td.co{color:var(--dead)}
+
+  .cIcons{display:flex;gap:4px}
+  .ci{display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:23px;padding:0 8px;border:1px solid var(--line);border-radius:2px;text-decoration:none;color:var(--soft);font-size:11px;font-weight:600;background:var(--surface)}
+  .ci:hover{border-color:var(--accent);color:var(--accent)}
+  .ci.tel{border-color:#b8c8da;background:var(--accent-soft);color:var(--accent)}
+  .ci.li.acc{border-color:#bcd2c3;background:var(--green-soft);color:var(--green)}
+  .ci.off{opacity:.4;pointer-events:none}
+
+  .stp{font-size:11.5px;font-weight:600;border-radius:2px;padding:3px 8px;white-space:nowrap;display:inline-block}
+  .stp.neu{background:var(--line2);color:var(--soft)}
+  .stp.offen{background:var(--amber-soft);color:var(--amber)}
+  .stp.gespraech{background:var(--accent-soft);color:var(--accent)}
+  .stp.termin{background:var(--green-soft);color:var(--green)}
+  .stp.kein{background:var(--hot-soft);color:var(--hot)}
+  .stp.tot{background:var(--line2);color:var(--dead)}
+
+  .next{white-space:nowrap}
+  .next .d{font-weight:600} .next .d.due{color:var(--hot)}
+
+  /* Notizen column */
+  .notiz{max-width:290px}
+  .notiz .src{font-size:11px;color:var(--faint);font-weight:600;white-space:nowrap}
+  .notiz .ndot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);margin-right:5px;vertical-align:middle}
+  .notiz .txt{display:block;font-size:12.5px;color:var(--soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}
+  .lessons{color:var(--soft);max-width:230px;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  .detail{background:#fcfdff} .detail td{padding:0}
+  .dpanel{padding:16px 18px;display:grid;grid-template-columns:1.1fr 1fr;gap:22px;border-top:2px solid var(--accent)}
+  .dcol h4{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--faint);margin-bottom:10px}
+  .person{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line)}
+  .person:last-child{border:none}
+  .person .pn{font-weight:600} .person .pr{color:var(--faint);font-size:12px}
+  .person .pa{margin-left:auto;display:flex;gap:5px}
+  .badge{font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:2px;background:var(--accent-soft);color:var(--accent)}
+
+  .hist{position:relative;padding-left:16px;margin-top:4px}
+  .hist::before{content:"";position:absolute;left:4px;top:5px;bottom:5px;width:2px;background:var(--line)}
+  .hi{position:relative;padding-bottom:11px;font-size:12.5px}
+  .hi:last-child{padding-bottom:0}
+  .hi .dot{position:absolute;left:-16px;top:3px;width:9px;height:9px;border-radius:50%;background:var(--accent)}
+  .hi .dot.m{background:var(--faint)} .hi .hm{color:var(--faint);font-size:11px}
+  .by{font-size:10px;font-weight:700;background:var(--accent-soft);color:var(--accent);border-radius:2px;padding:2px 8px;margin-left:5px;white-space:nowrap}
+  .logby{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);font-size:12px;color:var(--soft);display:flex;align-items:center;gap:6px}
+  .logby b{color:var(--accent)}
+
+  .log{background:var(--surface);border:1px solid var(--line);border-radius:2px;padding:13px;margin-top:6px}
+  .log .ch{display:flex;gap:6px;margin-bottom:10px}
+  .chb{flex:1;border:1px solid var(--line);background:var(--surface);border-radius:2px;padding:7px;cursor:pointer;text-align:center;font-weight:600;color:var(--soft);font-size:12.5px}
+  .chb.s{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+  .out{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .ob{border:1px solid var(--line);background:var(--bg);border-radius:2px;padding:5px 11px;cursor:pointer;font-size:12px;color:var(--soft)}
+  .ob:hover{border-color:var(--accent);color:var(--accent)}
+  .ob.s{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
+  textarea.n{width:100%;border:1px solid var(--line);border-radius:2px;padding:9px 11px;font-family:inherit;font-size:13px;resize:vertical;min-height:48px}
+  .logfoot{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
+  .save{background:var(--accent);color:#fff;border:none;border-radius:2px;padding:8px 15px;font-weight:600;cursor:pointer;font-size:13px}
+  .fu{display:flex;align-items:center;gap:6px;color:var(--soft);font-size:12.5px}
+  .fu select{border:1px solid var(--line);border-radius:2px;padding:5px 7px;font-family:inherit;font-size:12.5px}
+  .hotmark{display:flex;align-items:center;gap:6px;color:var(--soft);font-size:12.5px;cursor:pointer}
+  .derive{font-size:11.5px;color:var(--green);background:var(--green-soft);border-radius:2px;padding:8px 11px;margin-top:10px;line-height:1.5}
+
+  /* Fokus card */
+  .fc{background:var(--surface);border:1px solid var(--line);border-radius:2px;max-width:640px;margin:0 auto;overflow:hidden;box-shadow:0 2px 14px rgba(20,30,50,.05)}
+  .fc-hero{padding:24px 26px 18px;border-bottom:1px solid var(--line)}
+  .fc-name{font-size:26px;letter-spacing:-.5px;font-weight:700}
+  .fc-name .fire{font-size:15px;margin-left:9px;vertical-align:3px}
+  .fc-meta{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .fc-meta .m{background:var(--bg);border:1px solid var(--line);border-radius:2px;padding:4px 10px;font-size:12px;color:var(--soft)}
+  .fc-why{background:var(--amber-soft);color:var(--amber);border-radius:2px;padding:8px 12px;font-size:12.5px;font-weight:600;margin-top:12px;display:inline-block}
+  .fc-sec{padding:18px 26px;border-bottom:1px solid var(--line)}
+  .fc-sec:last-child{border:none}
+  .fc-label{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--faint);font-weight:700;margin-bottom:10px}
+  .fc-contacts{display:flex;flex-direction:column;gap:9px}
+  .fc-contact{display:flex;align-items:center;gap:12px}
+  .fc-contact .nm{font-weight:600} .fc-contact .rl{color:var(--faint);font-size:12px}
+  .fc-contact .acts{margin-left:auto;display:flex;gap:6px}
+  .fc-tel{display:inline-flex;align-items:center;gap:7px;background:var(--accent-soft);border:1px solid #cfe0fb;color:var(--accent);border-radius:2px;padding:8px 13px;text-decoration:none;font-weight:700;font-size:14px}
+  .fc-lessons{font-size:13px;color:var(--soft);background:var(--bg);border-radius:2px;padding:10px 12px;line-height:1.5}
+  .fc-foot{display:flex;gap:10px;padding:16px 26px;background:#fbfcfe}
+  .fc-next{background:var(--green);color:#fff;border:none;border-radius:2px;padding:11px 18px;font-weight:700;cursor:pointer;font-size:14px}
+  .fc-skip{background:var(--surface);border:1px solid var(--line);color:var(--soft);border-radius:2px;padding:11px 16px;font-weight:600;cursor:pointer;font-size:13.5px}
+  .fc-done{text-align:center;padding:60px 20px;color:var(--soft)}
+  .fc-done .big{font-size:40px;margin-bottom:12px}
+  .hint{font-size:11.5px;color:var(--faint);margin-top:14px;font-style:italic;text-align:center}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> ClickWise</div>
+    <button class="nav active" onclick="show('db',this)">Datenbank</button>
+    <button class="nav" onclick="show('focus',this)">Fokus <span class="b">5</span></button>
+    <div class="nav-foot">Lean v3 · 16.06.2026<br>Tel/Mail/LinkedIn klickbar. Zeile anklicken zum Eintragen.</div>
+  </aside>
+
+  <main class="main">
+
+    <!-- ===================== DATENBANK ===================== -->
+    <section class="view active" id="db">
+      <div class="head"><div><h1>Datenbank</h1></div><div class="sub">40 Firmen · Medien/PR-Batch Wien</div></div>
+      <div class="toolbar">
+        <input class="search" placeholder="Suchen…">
+        <button class="filt on">Aktiv</button>
+        <button class="filt">🔥 Heiß</button>
+        <button class="filt">Tot/Geparkt</button>
+        <button class="impbtn" onclick="document.getElementById('csvfile').click()">CSV importieren</button>
+        <input type="file" id="csvfile" accept=".csv" style="display:none" onchange="importCSV(this.files)">
+        <button class="addbtn" onclick="addCompany()">+ Neue Firma</button>
+      </div>
+      <div id="impReport" class="imp-report" style="display:none"></div>
+
+      <div class="tw">
+        <table>
+          <thead><tr>
+            <th>Unternehmen</th><th>Branche</th><th>Größe</th>
+            <th>Ansprechpartner</th><th>Kontakt</th><th>Status</th>
+            <th>Nächster Schritt</th><th>Notizen</th><th>Lessons learned</th>
+          </tr></thead>
+          <tbody>
+
+            <!-- Himmelhoch — HOT, Im Gespräch, neue Notiz -->
+            <tr class="r-main row-hot" onclick="toggle('d1')">
+              <td class="co">Himmelhoch GmbH<span class="fire">🔥</span></td>
+              <td class="dim">PR/Events</td><td class="dim">~37</td>
+              <td>Eva Mandl</td>
+              <td><span class="cIcons">
+                <a class="ci tel" href="tel:+4369911176656" title="+43 699 111 76656" onclick="event.stopPropagation()">Tel</a>
+                <a class="ci off" title="keine Mail hinterlegt">Mail</a>
+                <a class="ci li acc" title="linkedin.com/in/eva-mandl · angenommen" onclick="event.stopPropagation()">in</a>
+              </span></td>
+              <td><span class="stp gespraech">Im Gespräch</span></td>
+              <td class="next"><span class="d due">nächste Woche</span><br><span class="dim">anrufen</span></td>
+              <td class="notiz"><span class="ndot"></span><span class="src">Tel 09.06.</span><span class="txt">Sehr enthusiastisch, macht selbst Cyber-Workshops</span></td>
+              <td class="lessons">offen für Awareness-Thema, kennt die Materie</td>
+            </tr>
+            <tr class="detail" id="d1" style="display:none"><td colspan="9"><div class="dpanel">
+              <div class="dcol">
+                <h4>Ansprechpartner</h4>
+                <div class="person"><div><div class="pn">Eva Mandl <span class="badge">relevant</span></div><div class="pr">Geschäftsführerin</div></div>
+                  <div class="pa"><a class="ci tel" href="tel:+4369911176656">Tel</a><a class="ci off">Mail</a><a class="ci li acc">in</a></div></div>
+                <h4 style="margin-top:16px">Verlauf (Notizen)</h4>
+                <div class="hist">
+                  <div class="hi"><span class="dot"></span><div class="hm">09.06. · Telefon <span class="by">Arthur</span></div>Sehr enthusiastisch. Macht selbst Workshops zu Cybersecurity, will mehr hören. Als heiß markiert.</div>
+                  <div class="hi"><span class="dot m"></span><div class="hm">02.06. · LinkedIn <span class="by">Arthur</span></div>Vernetzungsanfrage angenommen.</div>
+                </div>
+              </div>
+              <div class="dcol">
+                <h4>Neuer Eintrag</h4>
+                <div class="log">
+                  <div class="ch"><button class="chb s" onclick="pick(this)">Telefon</button><button class="chb" onclick="pick(this)">E-Mail</button><button class="chb" onclick="pick(this)">LinkedIn</button></div>
+                  <div class="out"><button class="ob" onclick="ob(this)">Gesprochen</button><button class="ob" onclick="ob(this)">Nicht erreicht</button><button class="ob" onclick="ob(this)">Rückruf vereinbart</button><button class="ob" onclick="ob(this)">Termin vereinbart</button><button class="ob" onclick="ob(this)">Kein Interesse</button></div>
+                  <textarea class="n" placeholder="Was wurde gesagt? (ein Satz reicht)"></textarea>
+                  <div class="logfoot"><label class="fu"><input type="checkbox" checked> Follow-up <select><option>in 3 Tagen</option><option selected>nächste Woche</option><option>Ende Juni</option></select></label><label class="hotmark"><input type="checkbox" checked> 🔥 heiß</label></div>
+                  <div class="logby">Wird erfasst als <b>Arthur</b></div>
+                  <button class="save" style="margin-top:10px">Speichern</button>
+                  <div class="derive">Daraus wird gesetzt: Status, Notiz (mit Datum + Kanal), letzter Kontakt, Nächster Schritt + Eintrag in „Heute dran" + Kalender. Du tippst einen Satz.</div>
+                </div>
+              </div>
+            </div></td></tr>
+
+            <!-- Demner Merlicek — HOT, Offen (Rückruf), neue Notiz -->
+            <tr class="r-main row-hot" onclick="toggle('d2')">
+              <td class="co">Demner, Merlicek &amp; Bergmann<span class="fire">🔥</span></td>
+              <td class="dim">Werbeagentur</td><td class="dim">~100–110</td>
+              <td>Jürgen Vanicek</td>
+              <td><span class="cIcons">
+                <a class="ci tel" href="tel:+431588460" title="+43 1 588 46-0" onclick="event.stopPropagation()">Tel</a>
+                <a class="ci" href="mailto:empfang@dmb.at" title="empfang@dmb.at" onclick="event.stopPropagation()">Mail</a>
+                <a class="ci li acc" title="linkedin.com/in/juergen-vanicek · angenommen" onclick="event.stopPropagation()">in</a>
+              </span></td>
+              <td><span class="stp offen">Offen</span></td>
+              <td class="next"><span class="d due">überfällig</span><br><span class="dim">Rückruf</span></td>
+              <td class="notiz"><span class="ndot"></span><span class="src">Tel 13.06.</span><span class="txt">Rückruf vereinbart, war interessiert</span></td>
+              <td class="lessons">„ja bissl reingeschissen aber ok"</td>
+            </tr>
+            <tr class="detail" id="d2" style="display:none"><td colspan="9"><div class="dpanel">
+              <div class="dcol">
+                <h4>Verlauf (Notizen)</h4>
+                <div class="hist"><div class="hi"><span class="dot"></span><div class="hm">13.06. · Telefon <span class="by">Arthur</span></div>Rückruf für nächste Woche vereinbart, klang interessiert.</div></div>
+                <h4 style="margin-top:16px">Lessons learned</h4>
+                <textarea class="n" style="min-height:54px">Erster Anruf bissl holprig gelaufen, aber ok. Vanicek erreichbar über Empfang.</textarea>
+              </div>
+              <div class="dcol">
+                <h4>Neuer Eintrag</h4>
+                <div class="log">
+                  <div class="ch"><button class="chb s" onclick="pick(this)">Telefon</button><button class="chb" onclick="pick(this)">E-Mail</button><button class="chb" onclick="pick(this)">LinkedIn</button></div>
+                  <div class="out"><button class="ob" onclick="ob(this)">Gesprochen</button><button class="ob" onclick="ob(this)">Nicht erreicht</button><button class="ob s" onclick="ob(this)">Rückruf vereinbart</button><button class="ob" onclick="ob(this)">Termin vereinbart</button></div>
+                  <textarea class="n" placeholder="Was wurde gesagt?"></textarea>
+                  <div class="logfoot"><label class="fu"><input type="checkbox" checked> Follow-up <select><option>in 3 Tagen</option><option selected>nächste Woche</option></select></label><label class="hotmark"><input type="checkbox" checked> 🔥 heiß</label></div>
+                  <div class="logby">Wird erfasst als <b>Arthur</b></div>
+                  <button class="save" style="margin-top:10px">Speichern</button>
+                </div>
+              </div>
+            </div></td></tr>
+
+            <!-- bettertogether — Offen -->
+            <tr class="r-main" onclick="toggle('d3')">
+              <td class="co">bettertogether GmbH</td>
+              <td class="dim">PR-Agentur</td><td class="dim">~32–36</td>
+              <td>M. Grof-Korbel · Fr. Rath</td>
+              <td><span class="cIcons">
+                <a class="ci tel" href="tel:+4318902409" title="01 890 24 09" onclick="event.stopPropagation()">Tel</a>
+                <a class="ci" href="mailto:e.rath@bettertogether.com" title="e.rath@bettertogether.com" onclick="event.stopPropagation()">Mail</a>
+                <a class="ci li acc" title="linkedin.com/in/michael-grof-korbel · angenommen" onclick="event.stopPropagation()">in</a>
+              </span></td>
+              <td><span class="stp offen">Offen</span></td>
+              <td class="next"><span class="d">Ende Juni</span><br><span class="dim">Fr. Rath anrufen</span></td>
+              <td class="notiz"><span class="src">Tel 11.06.</span><span class="txt">Fr. Rath nicht da, Mail über Empfang erhalten</span></td>
+              <td class="lessons">Fr. Rath ist die richtige Ansprechpartnerin</td>
+            </tr>
+            <tr class="detail" id="d3" style="display:none"><td colspan="9"><div class="dpanel">
+              <div class="dcol">
+                <h4>Ansprechpartner</h4>
+                <div class="person"><div><div class="pn">Michael Grof-Korbel</div><div class="pr">Geschäftsführer</div></div><div class="pa"><a class="ci tel" href="tel:+4318902409">Tel</a><a class="ci li acc">in</a></div></div>
+                <div class="person"><div><div class="pn">Frau Rath <span class="badge">relevant</span></div><div class="pr">Ansprechpartnerin (per Tel.)</div></div><div class="pa"><a class="ci tel" href="tel:+4318902409">Tel</a><a class="ci" href="mailto:e.rath@bettertogether.com">Mail</a></div></div>
+                <h4 style="margin-top:16px">Verlauf (Notizen)</h4>
+                <div class="hist"><div class="hi"><span class="dot"></span><div class="hm">11.06. · Telefon <span class="by">Arthur</span></div>Fr. Rath nicht da, Mail über Empfang. Ende Juni nochmal.</div></div>
+              </div>
+              <div class="dcol">
+                <h4>Neuer Eintrag</h4>
+                <div class="log">
+                  <div class="ch"><button class="chb s" onclick="pick(this)">Telefon</button><button class="chb" onclick="pick(this)">E-Mail</button><button class="chb" onclick="pick(this)">LinkedIn</button></div>
+                  <div class="out"><button class="ob" onclick="ob(this)">Gesprochen</button><button class="ob s" onclick="ob(this)">Nicht erreicht</button><button class="ob" onclick="ob(this)">Rückruf vereinbart</button><button class="ob" onclick="ob(this)">Kein Interesse</button></div>
+                  <textarea class="n" placeholder="Was wurde gesagt?"></textarea>
+                  <div class="logfoot"><label class="fu"><input type="checkbox" checked> Follow-up <select><option>in 3 Tagen</option><option>nächste Woche</option><option selected>Ende Juni</option></select></label><label class="hotmark"><input type="checkbox"> 🔥 heiß</label></div>
+                  <div class="logby">Wird erfasst als <b>Arthur</b></div>
+                  <button class="save" style="margin-top:10px">Speichern</button>
+                </div>
+              </div>
+            </div></td></tr>
+
+            <!-- Bohmann — Im Gespräch -->
+            <tr class="r-main" onclick="toggle('d4')">
+              <td class="co">Bohmann Verlag</td>
+              <td class="dim">Verlag/Medien</td><td class="dim">~180</td>
+              <td>G. Milletich · Hr. Lang (IT)</td>
+              <td><span class="cIcons"><a class="ci tel" href="tel:+431740320" onclick="event.stopPropagation()">Tel</a><a class="ci off">Mail</a><a class="ci li off">in</a></span></td>
+              <td><span class="stp gespraech">Im Gespräch</span></td>
+              <td class="next"><span class="d">offen</span><br><span class="dim">Angebot vorbereiten</span></td>
+              <td class="notiz"><span class="src">Tel 10.06.</span><span class="txt">Hr. Lang: haben schon IT-Sicherheitslösung</span></td>
+              <td class="lessons">„ersetzen nicht, bauen darauf auf"</td>
+            </tr>
+            <tr class="detail" id="d4" style="display:none"><td colspan="9"><div class="dpanel">
+              <div class="dcol">
+                <h4>Lessons learned</h4>
+                <textarea class="n" style="min-height:70px">Hr. Lang (IT-Verantwortlicher): es gibt schon eine generelle IT-Sicherheitslösung. → Argument: wir ersetzen die nicht, sondern bauen darauf auf und erweitern den Schutz.</textarea>
+                <h4 style="margin-top:16px">Verlauf (Notizen)</h4>
+                <div class="hist"><div class="hi"><span class="dot"></span><div class="hm">10.06. · Telefon <span class="by">Arthur</span></div>Mit Hr. Lang gesprochen. Einwand: haben schon Lösung.</div></div>
+              </div>
+              <div class="dcol">
+                <h4>Neuer Eintrag</h4>
+                <div class="log">
+                  <div class="ch"><button class="chb s" onclick="pick(this)">Telefon</button><button class="chb" onclick="pick(this)">E-Mail</button><button class="chb" onclick="pick(this)">LinkedIn</button></div>
+                  <div class="out"><button class="ob" onclick="ob(this)">Gesprochen</button><button class="ob" onclick="ob(this)">Nicht erreicht</button><button class="ob" onclick="ob(this)">Rückruf vereinbart</button><button class="ob" onclick="ob(this)">Termin vereinbart</button></div>
+                  <textarea class="n" placeholder="Was wurde gesagt?"></textarea>
+                  <div class="logfoot"><label class="fu"><input type="checkbox"> Follow-up <select><option>in 3 Tagen</option><option>nächste Woche</option></select></label><label class="hotmark"><input type="checkbox"> 🔥 heiß</label></div>
+                  <div class="logby">Wird erfasst als <b>Arthur</b></div>
+                  <button class="save" style="margin-top:10px">Speichern</button>
+                </div>
+              </div>
+            </div></td></tr>
+
+            <!-- Stadtwerke Hartberg — Neu -->
+            <tr class="r-main" onclick="toggle('d5')">
+              <td class="co">Stadtwerke Hartberg</td>
+              <td class="dim">Energieversorger</td><td class="dim">~120</td>
+              <td>Christoph Ehrenhöfer</td>
+              <td><span class="cIcons"><a class="ci off">Tel</a><a class="ci off">Mail</a><a class="ci li off">in</a></span></td>
+              <td><span class="stp neu">Neu</span></td>
+              <td class="next"><span class="dim">Erstkontakt planen</span></td>
+              <td class="notiz dim">—</td>
+              <td class="lessons dim">—</td>
+            </tr>
+            <tr class="detail" id="d5" style="display:none"><td colspan="9"><div class="dpanel">
+              <div class="dcol"><h4>Verlauf</h4><div class="dim" style="font-size:12.5px">Noch kein Kontakt. Telefonnummer fehlt, beim Erstkontakt ergänzen.</div></div>
+              <div class="dcol"><h4>Neuer Eintrag</h4><div class="log">
+                <div class="ch"><button class="chb s" onclick="pick(this)">Telefon</button><button class="chb" onclick="pick(this)">E-Mail</button><button class="chb" onclick="pick(this)">LinkedIn</button></div>
+                <div class="out"><button class="ob" onclick="ob(this)">Gesprochen</button><button class="ob" onclick="ob(this)">Nicht erreicht</button><button class="ob" onclick="ob(this)">Warteschlange</button></div>
+                <textarea class="n" placeholder="Was wurde gesagt?"></textarea><div class="logby">Wird erfasst als <b>Arthur</b></div>
+                  <button class="save" style="margin-top:10px">Speichern</button>
+              </div></div>
+            </div></td></tr>
+
+            <!-- Chapter 4 — Tot -->
+            <tr class="r-main row-dead" onclick="toggle('d6')">
+              <td class="co">Chapter 4 GmbH</td>
+              <td>PR-Agentur</td><td>~40</td>
+              <td>Boris Beker</td>
+              <td><span class="cIcons"><a class="ci off">Tel</a><a class="ci off">Mail</a><a class="ci off">in</a></span></td>
+              <td><span class="stp tot">Tot</span></td>
+              <td class="next dim">—</td>
+              <td class="notiz"><span class="src">Tel 05.06.</span><span class="txt">Nummer existiert nicht mehr</span></td>
+              <td class="lessons dim">—</td>
+            </tr>
+            <tr class="detail" id="d6" style="display:none"><td colspan="9"><div class="dpanel">
+              <div class="dcol"><h4>Status</h4><div class="dim" style="font-size:12.5px">Als tot markiert: Nummer existiert nicht. Bleibt in der Datenbank (Filter „Tot/Geparkt"), taucht nicht in „Heute dran" auf.</div></div><div class="dcol"></div>
+            </div></td></tr>
+
+            <!-- Milestones — Geparkt -->
+            <tr class="r-main row-dead" onclick="toggle('d7')">
+              <td class="co">Milestones in Communication</td>
+              <td>PR-Agentur</td><td>~30–50</td>
+              <td>Werner Beninger</td>
+              <td><span class="cIcons"><a class="ci off">Tel</a><a class="ci off">Mail</a><a class="ci off">in</a></span></td>
+              <td><span class="stp tot">Geparkt</span></td>
+              <td class="next dim">—</td>
+              <td class="notiz dim">⚠ Insolvenz</td>
+              <td class="lessons dim">—</td>
+            </tr>
+            <tr class="detail" id="d7" style="display:none"><td colspan="9"><div class="dpanel">
+              <div class="dcol"><h4>Status</h4><div class="dim" style="font-size:12.5px">Geparkt wegen Insolvenz. Nicht gelöscht, nur aus dem Weg.</div></div><div class="dcol"></div>
+            </div></td></tr>
+
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">Die HEISS-Markierung wird beim Loggen gesetzt und sortiert die Firma nach oben. Notizen-Spalte zeigt die neueste Notiz mit Datum und Kanal; blauer Punkt = neu seit letztem Blick. Zeile anklicken zum Eintragen.</div>
+    </section>
+
+    <!-- ===================== FOKUS ===================== -->
+    <section class="view" id="focus">
+      <div class="head"><div><h1>Fokus</h1></div><div class="sub" id="fcProg">Firma 1 von 5</div></div>
+      <div id="fcCard"></div>
+      <div class="hint">Durchböllern: eine Firma, alles dran, dokumentieren, weiter. Die nächste wird dir automatisch gereicht (heiße zuerst), du musst nichts sortieren. Ist die Liste durch, bist du fertig.</div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  function show(id,btn){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('.nav').forEach(n=>n.classList.remove('active'));if(btn)btn.classList.add('active');window.scrollTo(0,0);}
+  function toggle(id){const r=document.getElementById(id);r.style.display=r.style.display==='none'?'table-row':'none';}
+  const OUTCOMES={
+    'Telefon':['Gesprochen','Nicht erreicht','Rückruf vereinbart','Warteschlange','Termin vereinbart','Kein Interesse'],
+    'E-Mail':['Gesendet','Antwort erhalten','Keine Antwort','Termin vereinbart','Kein Interesse'],
+    'LinkedIn':['Anfrage gesendet','Angenommen','Nachricht gesendet','Geantwortet','Kein Interesse']
+  };
+  const PLACEHOLDER={'Telefon':'Was wurde gesagt? (ein Satz reicht)','E-Mail':'Worum ging es in der Mail?','LinkedIn':'Was wurde geschrieben?'};
+  function pick(b){
+    b.parentElement.querySelectorAll('.chb').forEach(x=>x.classList.remove('s'));b.classList.add('s');
+    const t=b.textContent;
+    const ch=t.includes('Mail')?'E-Mail':t.includes('LinkedIn')?'LinkedIn':'Telefon';
+    const log=b.closest('.log');
+    const out=log.querySelector('.out');
+    if(out)out.innerHTML=OUTCOMES[ch].map(o=>'<button class="ob" onclick="ob(this)">'+o+'</button>').join('');
+    const ta=log.querySelector('textarea.n');
+    if(ta)ta.placeholder=PLACEHOLDER[ch];
+  }
+  function ob(b){b.parentElement.querySelectorAll('.ob').forEach(x=>x.classList.remove('s'));b.classList.add('s');}
+  // ---- Fokus-Modus ----
+  const FOCUS=[
+    {name:'Demner, Merlicek &amp; Bergmann',hot:true,branche:'Werbeagentur',groesse:'~100–110',why:'Rückruf war vereinbart',
+     contacts:[{nm:'Jürgen Vanicek',rl:'Geschäftsführer',tel:'+43 1 588 46-0',mail:'empfang@dmb.at',li:'in/juergen-vanicek'}],
+     notes:[{d:'13.06.',ch:'Telefon',t:'Rückruf für nächste Woche vereinbart, klang interessiert.'}],
+     lessons:'Erster Anruf bissl holprig, aber ok. Über Empfang erreichbar.'},
+    {name:'Himmelhoch GmbH',hot:true,branche:'PR/Events',groesse:'~37',why:'Vereinbart: nächste Woche nochmal',
+     contacts:[{nm:'Eva Mandl',rl:'Geschäftsführerin',tel:'+43 699 111 76656',mail:'',li:'in/eva-mandl'}],
+     notes:[{d:'09.06.',ch:'Telefon',t:'Sehr enthusiastisch, macht selbst Cyber-Workshops, will mehr hören.'},{d:'02.06.',ch:'LinkedIn',t:'Vernetzungsanfrage angenommen.'}],
+     lessons:'Sehr offen, macht selbst Workshops zu Cybersecurity. Kennt die Materie.'},
+    {name:'RADIX Marketingberatung',hot:false,branche:'Marketing/Marktforschung',groesse:'~21',why:'War nicht erreichbar, nochmal probieren',
+     contacts:[{nm:'Alexander Tichy',rl:'Geschäftsführer',tel:'+43 1 929 1268',mail:'',li:''}],
+     notes:[{d:'12.06.',ch:'Telefon',t:'Grad nicht erreichbar.'}],
+     lessons:''},
+    {name:'bettertogether GmbH',hot:false,branche:'PR-Agentur',groesse:'~32–36',why:'Fr. Rath nochmal versuchen',
+     contacts:[{nm:'Frau Rath',rl:'Ansprechpartnerin',tel:'+43 1 890 24 09',mail:'e.rath@bettertogether.com',li:'in/michael-grof-korbel'}],
+     notes:[{d:'11.06.',ch:'Telefon',t:'Fr. Rath nicht da, Mail über Empfang erhalten.'}],
+     lessons:'Fr. Rath ist die richtige Ansprechpartnerin, nicht der GF.'},
+    {name:'Stadtwerke Hartberg',hot:false,branche:'Energieversorger',groesse:'~120',why:'Frischer Lead, Erstkontakt',
+     contacts:[{nm:'Christoph Ehrenhöfer',rl:'Geschäftsführer',tel:'',mail:'',li:''}],
+     notes:[],
+     lessons:''}
+  ];
+  let fci=0;
+  function renderFocus(){
+    const card=document.getElementById('fcCard');
+    const prog=document.getElementById('fcProg');
+    if(fci>=FOCUS.length){
+      prog.textContent='fertig';
+      card.innerHTML='<div class="fc"><div class="fc-done"><div class="big">✓</div><div style="font-size:16px;font-weight:600;color:var(--ink)">Liste durch.</div><div>Alle Firmen dieser Runde abgearbeitet. Gut gemacht.</div></div></div>';
+      return;
+    }
+    const c=FOCUS[fci];
+    prog.textContent='Firma '+(fci+1)+' von '+FOCUS.length;
+    const contacts=c.contacts.map(p=>{
+      const tel=p.tel?'<a class="fc-tel" href="tel:'+p.tel.replace(/\\s/g,'')+'">Tel '+p.tel+'</a>':'<span class="rl">keine Nummer, beim Kontakt ergänzen</span>';
+      const mail=p.mail?'<a class="ci" href="mailto:'+p.mail+'" title="'+p.mail+'">Mail</a>':'<a class="ci off" title="keine Mail">Mail</a>';
+      const li=p.li?'<a class="ci li acc" title="linkedin.com/'+p.li+'">in</a>':'<a class="ci off" title="keLinkedIn">in</a>';
+      return '<div class="fc-contact"><div><div class="nm">'+p.nm+'</div><div class="rl">'+p.rl+'</div></div><div class="acts">'+tel+mail+li+'</div></div>';
+    }).join('');
+    const notesHtml=(c.notes&&c.notes.length)
+      ?'<div class="fc-sec"><div class="fc-label">Notizen (zuletzt)</div><div class="hist">'+
+        c.notes.map(n=>'<div class="hi"><span class="dot'+(c.notes.indexOf(n)?' m':'')+'"></span><div class="hm">'+n.d+' · '+n.ch+' <span class="by">'+(n.by||'Arthur')+'</span></div>'+n.t+'</div>').join('')+
+       '</div></div>'
+      :'';
+    const lessons=c.lessons?'<div class="fc-sec"><div class="fc-label">Lessons learned</div><div class="fc-lessons">'+c.lessons+'</div></div>':'';
+    card.innerHTML=
+      '<div class="fc">'+
+        '<div class="fc-hero">'+
+          '<div class="fc-name">'+c.name+(c.hot?'<span class="fire">🔥</span>':'')+'</div>'+
+          '<div class="fc-meta"><span class="m">'+c.branche+'</span><span class="m">'+c.groesse+'</span></div>'+
+          '<div class="fc-why">→ '+c.why+'</div>'+
+        '</div>'+
+        '<div class="fc-sec"><div class="fc-label">Kontakt</div><div class="fc-contacts">'+contacts+'</div></div>'+
+        notesHtml+
+        lessons+
+        '<div class="fc-sec"><div class="fc-label">Dokumentieren</div><div class="log">'+
+          '<div class="ch"><button class="chb s" onclick="pick(this)">Telefon</button><button class="chb" onclick="pick(this)">E-Mail</button><button class="chb" onclick="pick(this)">LinkedIn</button></div>'+
+          '<div class="out"><button class="ob" onclick="ob(this)">Gesprochen</button><button class="ob" onclick="ob(this)">Nicht erreicht</button><button class="ob" onclick="ob(this)">Rückruf vereinbart</button><button class="ob" onclick="ob(this)">Warteschlange</button><button class="ob" onclick="ob(this)">Termin vereinbart</button><button class="ob" onclick="ob(this)">Kein Interesse</button></div>'+
+          '<textarea class="n" placeholder="Was wurde gesagt? (ein Satz reicht)"></textarea>'+
+          '<div class="logfoot"><label class="fu"><input type="checkbox"> Follow-up <select><option>in 3 Tagen</option><option>nächste Woche</option><option>Ende Juni</option></select></label><label class="hotmark"><input type="checkbox"'+(c.hot?' checked':'')+'> 🔥 heiß</label></div>'+
+          '<div class="logby">Wird erfasst als <b>Arthur</b></div>'+
+        '</div></div>'+
+        '<div class="fc-foot"><button class="fc-next" onclick="nextFocus()">✓ Speichern &amp; weiter</button><button class="fc-skip" onclick="nextFocus()">Überspringen →</button></div>'+
+      '</div>';
+  }
+  function nextFocus(){fci++;renderFocus();window.scrollTo(0,0);}
+
+  function addCompany(){
+    const tb=document.querySelector('#db tbody');
+    const tr=document.createElement('tr');
+    tr.className='newrow';
+    tr.innerHTML=
+      '<td class="co"><input placeholder="Firmenname" autofocus></td>'+
+      '<td><input placeholder="Branche"></td>'+
+      '<td><input placeholder="Größe" style="min-width:60px"></td>'+
+      '<td><input placeholder="Ansprechpartner"></td>'+
+      '<td><input placeholder="Telefon"></td>'+
+      '<td><span class="stp neu">Neu</span></td>'+
+      '<td class="dim">—</td><td class="dim">—</td>'+
+      '<td><button class="saverow" onclick="saveNew(this)">✓ Anlegen</button></td>';
+    tb.insertBefore(tr,tb.firstChild);
+    tr.querySelector('input').focus();
+  }
+  function saveNew(btn){
+    const tr=btn.closest('tr');
+    const inp=tr.querySelectorAll('input');
+    const name=inp[0].value||'Neue Firma';
+    tr.className='r-main';
+    tr.innerHTML=
+      '<td class="co">'+name+'</td>'+
+      '<td class="dim">'+(inp[1].value||'—')+'</td>'+
+      '<td class="dim">'+(inp[2].value||'—')+'</td>'+
+      '<td>'+(inp[3].value||'—')+'</td>'+
+      '<td><span class="cIcons">'+(inp[4].value?'<a class="ci tel" href="tel:'+inp[4].value.replace(/\\s/g,'')+'">Tel</a>':'<a class="ci off">Tel</a>')+'<a class="ci off">Mail</a><a class="ci off">in</a></span></td>'+
+      '<td><span class="stp neu">Neu</span></td>'+
+      '<td class="next"><span class="dim">Erstkontakt planen</span></td>'+
+      '<td class="notiz dim">—</td><td class="lessons dim">—</td>';
+  }
+  renderFocus();
+
+  // ---- CSV-Import mit Dedupe + Dead-Company-Guard ----
+  function normName(s){return (s||'').toLowerCase().replace(/"/g,'').replace(/\b(gmbh|ges\.?m\.?b\.?h\.?|gesellschaft m\.?b\.?h\.?|& co\.? kg|kg|ag|e\.?u\.?|og)\b/g,'').replace(/[^a-z0-9]/g,'').trim();}
+  function parseLine(line){
+    const out=[];let cur='',q=false;
+    for(let i=0;i<line.length;i++){const c=line[i];
+      if(q){if(c==='"'){if(line[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=c;}
+      else{if(c==='"')q=true;else if(c===','){out.push(cur);cur='';}else cur+=c;}}
+    out.push(cur);return out;
+  }
+  function existingIndex(){
+    // baut Dedupe-Index aus den aktuellen Tabellenzeilen
+    const known={},dead={};
+    document.querySelectorAll('#db tbody tr.r-main').forEach(tr=>{
+      const co=tr.querySelector('td.co');if(!co)return;
+      const n=normName(co.textContent);if(!n)return;
+      known[n]=true;
+      const st=tr.querySelector('.stp');
+      if(st && /tot|geparkt/i.test(st.textContent))dead[n]=true;
+    });
+    return {known,dead};
+  }
+  function importCSV(files){
+    if(!files||!files[0])return;
+    const fr=new FileReader();
+    fr.onload=function(e){
+      const lines=e.target.result.split(/\r?\n/).filter(l=>l.trim());
+      if(!lines.length)return;
+      const header=parseLine(lines[0]).map(h=>h.trim().toLowerCase());
+      const col=name=>header.indexOf(name);
+      const idx=existingIndex();
+      let added=0,dup=0,deadSkip=0;
+      const tb=document.querySelector('#db tbody');
+      for(let i=1;i<lines.length;i++){
+        const f=parseLine(lines[i]);
+        const name=(f[col('unternehmen')]||'').trim();if(!name)continue;
+        const n=normName(name);
+        if(idx.dead[n]){deadSkip++;continue;}
+        if(idx.known[n]){dup++;continue;}
+        idx.known[n]=true;
+        const branche=(f[col('branche')]||'').trim();
+        const groesse=(f[col('groesse')]||'').trim();
+        const person=(f[col('ansprechpartner')]||'').trim();
+        const tel=(f[col('telefon')]||'').trim();
+        const mails=(f[col('email')]||'').split(';').map(m=>m.trim()).filter(Boolean);
+        const li=(f[col('linkedin')]||'').trim();
+        const lessons=(f[col('lessons')]||'').trim();
+        const notiz=(f[col('notiz')]||'').trim();
+        const telIco=tel?'<a class="ci tel" href="tel:'+tel.replace(/\s/g,'')+'" title="'+tel+'">Tel</a>':'<a class="ci off">Tel</a>';
+        const mailIco=mails.length?mails.map(m=>'<a class="ci" href="mailto:'+m+'" title="'+m+'">Mail</a>').join(''):'<a class="ci off">Mail</a>';
+        const liIco=li?'<a class="ci li acc" title="linkedin.com/'+li+'">in</a>':'<a class="ci off">in</a>';
+        const tr=document.createElement('tr');tr.className='r-main';
+        tr.innerHTML='<td class="co">'+name+'</td>'+
+          '<td class="dim">'+(branche||'—')+'</td><td class="dim">'+(groesse||'—')+'</td>'+
+          '<td>'+(person||'—')+'</td>'+
+          '<td><span class="cIcons">'+telIco+mailIco+liIco+'</span></td>'+
+          '<td><span class="stp neu">Neu</span></td>'+
+          '<td class="next"><span class="dim">Erstkontakt planen</span></td>'+
+          '<td class="notiz'+(notiz?'':' dim')+'">'+(notiz?'<span class="txt">'+notiz+'</span>':'—')+'</td>'+
+          '<td class="lessons'+(lessons?'':' dim')+'">'+(lessons||'—')+'</td>';
+        tb.insertBefore(tr,tb.firstChild);added++;
+      }
+      const rep=document.getElementById('impReport');
+      rep.style.display='block';
+      rep.innerHTML='<b>'+added+' neu importiert.</b> '+(dup+deadSkip)+' übersprungen'+
+        ((dup+deadSkip)?' (davon '+dup+' bereits im CRM'+(deadSkip?', <span class="warn">'+deadSkip+' als „nicht kontaktieren" geschützt</span>':'')+')':'')+'.';
+      document.getElementById('csvfile').value='';
+    };
+    fr.readAsText(files[0]);
+  }
+</script>
+</body>
+</html>
