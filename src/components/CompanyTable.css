@@ -1,26 +1,27 @@
-/* CompanyTable.css — lifted verbatim from lean-crm-mockup.html (UI-01).
-   Do not re-derive values; these are the locked corporate-navy / 2px / dense
-   Excel-grid tokens. Sticky first column + sticky header, single 1px grid lines,
-   status pills, dead-row dimming. min-width:1180px is what enables horizontal
-   scroll (RESEARCH Pitfall 5); .tw uses overflow:auto, never overflow:hidden. */
+/* CompanyTable.css — design direction B (Linear / SaaS), tokens from
+   design-explorations.html [data-theme="B"]. Floating white card with soft
+   shadow, no full gridlines (subtle row separators only), light sidebar chrome
+   (App.css), violet accent. Sticky first column + sticky header, status pills,
+   dead-row dimming. min-width:1180px is what enables horizontal scroll
+   (RESEARCH Pitfall 5); .tw uses overflow:auto, never overflow:hidden. */
 
 :root {
-  --bg: #eef1f4;
+  --bg: #fbfbfd;
   --surface: #fff;
-  --ink: #1f2733;
-  --soft: #54606e;
-  --faint: #8a94a1;
-  --line: #cdd4dc;
-  --line2: #dde2e8;
-  --accent: #2c5282;
-  --accent-soft: #e8edf3;
-  --hot: #b23b3b;
-  --hot-soft: #f6ebeb;
+  --ink: #1c1f2a;
+  --soft: #5b6172;
+  --faint: #9499a6;
+  --line: #e6e7ec;
+  --line2: #f3f3f6;
+  --accent: #6366f1;
+  --accent-soft: #eef0ff;
+  --hot: #c0392b;
+  --hot-soft: #fdecec;
   --green: #2b7a4b;
-  --green-soft: #e9f1eb;
-  --amber: #9a6510;
-  --amber-soft: #f5efe2;
-  --dead: #9aa3ae;
+  --green-soft: #e9f5ee;
+  --amber: #b45309;
+  --amber-soft: #fff4e5;
+  --dead: #9499a6;
 }
 
 /* Toolbar (render-only chrome for layout fidelity; only Tot/Geparkt is wired) */
@@ -34,7 +35,7 @@
   flex: 1;
   max-width: 280px;
   border: 1px solid var(--line);
-  border-radius: 2px;
+  border-radius: 8px;
   padding: 7px 11px;
   font-family: inherit;
   font-size: 13px;
@@ -42,8 +43,8 @@
 }
 .filt {
   border: 1px solid var(--line);
-  background: var(--surface);
-  border-radius: 2px;
+  background: #fff;
+  border-radius: 8px;
   padding: 7px 11px;
   font-size: 12.5px;
   color: var(--soft);
@@ -52,36 +53,38 @@
 .filt.on {
   border-color: var(--accent);
   color: var(--accent);
-  background: var(--accent-soft);
+  background: #eef0ff;
   font-weight: 600;
 }
 .impbtn {
   margin-left: auto;
-  background: var(--surface);
+  background: #fff;
   color: var(--accent);
   border: 1px solid var(--accent);
-  border-radius: 2px;
+  border-radius: 8px;
   padding: 8px 14px;
   font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
 }
 .addbtn {
-  background: var(--accent);
+  background: #6366f1;
   color: #fff;
   border: none;
-  border-radius: 2px;
+  border-radius: 8px;
   padding: 8px 14px;
   font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
 }
 
-/* Table shell + grid */
+/* Table shell — floating white card (no full gridlines, soft shadow) */
 .tw {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 2px;
+  background: #fff;
+  border: 1px solid #ececf1;
+  border-radius: 14px;
+  box-shadow: 0 4px 20px rgba(20, 20, 40, 0.06);
   overflow: auto;
 }
 table {
@@ -91,24 +94,19 @@ table {
 }
 th,
 td {
-  padding: 6px 10px;
+  padding: 13px 16px;
   text-align: left;
-  border-bottom: 1px solid var(--line2);
-  border-right: 1px solid var(--line2);
+  border-bottom: 1px solid #f3f3f6;
   vertical-align: top;
 }
-th:last-child,
-td:last-child {
-  border-right: none;
-}
 th {
-  background: #dfe4ea;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: #46525f;
-  font-weight: 700;
-  border-bottom: 1px solid var(--line);
+  background: #fff;
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: 0.2px;
+  color: #9499a6;
+  font-weight: 600;
+  border-bottom: 1px solid #f0f0f4;
   position: sticky;
   top: 0;
   z-index: 2;
@@ -118,18 +116,18 @@ th {
   cursor: pointer;
 }
 .r-main:hover td {
-  background: #fafbfd;
+  background: #fafaff;
 }
 td.co {
   font-weight: 600;
   position: sticky;
   left: 0;
-  background: var(--surface);
+  background: #fff;
   z-index: 1;
   white-space: nowrap;
 }
 .r-main:hover td.co {
-  background: #fafbfd;
+  background: #fafaff;
 }
 .dim {
   color: var(--soft);
@@ -158,25 +156,25 @@ td.co {
   min-width: 36px;
   height: 23px;
   padding: 0 8px;
-  border: 1px solid var(--line);
-  border-radius: 2px;
+  border: 1px solid transparent;
+  border-radius: 7px;
   text-decoration: none;
   color: var(--soft);
   font-size: 11px;
   font-weight: 600;
-  background: var(--surface);
+  background: #f6f6fa;
 }
 .ci:hover {
   border-color: var(--accent);
   color: var(--accent);
 }
 .ci.tel {
-  border-color: #b8c8da;
-  background: var(--accent-soft);
-  color: var(--accent);
+  border-color: transparent;
+  background: #eef0ff;
+  color: #4f46e5;
 }
 .ci.li.acc {
-  border-color: #bcd2c3;
+  border-color: transparent;
   background: var(--green-soft);
   color: var(--green);
 }
@@ -189,34 +187,34 @@ td.co {
 .stp {
   font-size: 11.5px;
   font-weight: 600;
-  border-radius: 2px;
-  padding: 3px 8px;
+  border-radius: 7px;
+  padding: 3px 11px;
   white-space: nowrap;
   display: inline-block;
 }
 .stp.neu {
-  background: var(--line2);
-  color: var(--soft);
+  background: #f1f1f6;
+  color: #5b6172;
 }
 .stp.offen {
-  background: var(--amber-soft);
-  color: var(--amber);
+  background: #fff4e5;
+  color: #b45309;
 }
 .stp.gespraech {
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: #eef0ff;
+  color: #4f46e5;
 }
 .stp.termin {
-  background: var(--green-soft);
-  color: var(--green);
+  background: #e9f5ee;
+  color: #2b7a4b;
 }
 .stp.kein {
-  background: var(--hot-soft);
-  color: var(--hot);
+  background: #fdecec;
+  color: #c0392b;
 }
 .stp.tot {
-  background: var(--line2);
-  color: var(--dead);
+  background: #f4f5f7;
+  color: #9499a6;
 }
 
 /* Nächster Schritt / Notizen / Lessons cells */
