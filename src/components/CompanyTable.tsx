@@ -15,17 +15,10 @@ import type { Status } from "../types";
 import { deriveNewestNote, deriveNextStep, hasNewNote } from "../data/derive";
 import { CompanyDetail } from "./CompanyDetail";
 import type { LogEntry } from "./LogForm";
+import { shortDate } from "../utils/date";
 import "./CompanyTable.css";
 
 const DEAD = new Set<Status>(["Tot", "Geparkt"]);
-
-// "2026-06-09T08:00:00Z" → "09.06." (Notizen column source label).
-function shortDate(iso: string): string {
-  const d = new Date(iso);
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  return `${dd}.${mm}.`;
-}
 
 // Status pill → mockup variant class (UI-SPEC Status pill → color map).
 const PILL_VARIANT: Record<Status, string> = {

@@ -10,17 +10,10 @@
 import type { Company, Contact } from "../data/companies";
 import type { Interaction } from "../data/interactions";
 import { LogForm, type LogEntry } from "./LogForm";
+import { shortDate } from "../utils/date";
 import "./CompanyDetail.css";
 
 const EMPTY = "—";
-
-// "2026-06-09T08:00:00Z" → "09.06." (the mockup history date shape, line 199).
-function shortDate(iso: string): string {
-  const d = new Date(iso);
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  return `${dd}.${mm}.`;
-}
 
 type Props = {
   company: Company;
