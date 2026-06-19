@@ -10,6 +10,10 @@ build/
 # Tauri / Rust
 src-tauri/target/
 target/
+src-tauri/gen/schemas/
+
+# Local design scratch (kept out of the repo; direction is locked in 01-UI-SPEC.md)
+design-explorations.html
 
 # Local DB & env
 *.db
