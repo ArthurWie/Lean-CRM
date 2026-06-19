@@ -7,7 +7,7 @@
 // markViewed-on-open behaviour. Structure + German copy from lean-crm-mockup.html
 // lines 192-215; colors from direction B (CompanyTable.css :root). 🔥 lives only
 // inside the embedded LogForm.
-import type { Company, Contact } from "../data/companies";
+import type { Contact } from "../data/companies";
 import type { Interaction } from "../data/interactions";
 import { LogForm, type LogEntry } from "./LogForm";
 import { shortDate } from "../utils/date";
@@ -16,7 +16,6 @@ import "./CompanyDetail.css";
 const EMPTY = "—";
 
 type Props = {
-  company: Company;
   contacts: Contact[];
   interactions: Interaction[];
   onSave: (entry: LogEntry) => void;

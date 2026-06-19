@@ -177,7 +177,6 @@ export function CompanyTable({
                     <tr className="detail">
                       <td colSpan={9}>
                         <CompanyDetail
-                          company={c}
                           contacts={contacts}
                           interactions={interactions}
                           onSave={(entry) => onSave?.(c.id, entry)}

@@ -2,23 +2,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import { CompanyDetail } from "./CompanyDetail";
-import type { Company, Contact } from "../data/companies";
+import type { Contact } from "../data/companies";
 import type { Interaction } from "../data/interactions";
-
-function company(over: Partial<Company> & Pick<Company, "id" | "name" | "status">): Company {
-  return {
-    fn: null,
-    branche: null,
-    groesse: null,
-    heiss: false,
-    website: null,
-    lessons: null,
-    last_viewed: null,
-    created_at: "2026-01-01T00:00:00Z",
-    updated_at: "2026-01-01T00:00:00Z",
-    ...over,
-  } as Company;
-}
 
 function contact(over: Partial<Contact> & Pick<Contact, "id" | "firma_id" | "name">): Contact {
   return {
@@ -45,8 +30,6 @@ function interaction(
 }
 
 describe("CompanyDetail", () => {
-  const co = company({ id: "f1", name: "Himmelhoch GmbH", status: "Im Gespräch" });
-
   it("renders the Verlauf (Notizen) heading and one history line per interaction, newest-first (DB-06)", () => {
     const interactions: Interaction[] = [
       interaction({
@@ -66,7 +49,6 @@ describe("CompanyDetail", () => {
     ];
     render(
       <CompanyDetail
-        company={co}
         contacts={[]}
         interactions={interactions}
         onSave={vi.fn()}
@@ -86,7 +68,6 @@ describe("CompanyDetail", () => {
   it("renders the Ansprechpartner block when contacts are present (DB-06)", () => {
     render(
       <CompanyDetail
-        company={co}
         contacts={[contact({ id: "k1", firma_id: "f1", name: "Eva Mandl", rolle: "Geschäftsführerin" })]}
         interactions={[]}
         onSave={vi.fn()}
@@ -98,7 +79,7 @@ describe("CompanyDetail", () => {
 
   it("embeds the LogForm (Telefon channel button present) (DB-06/LOG-01)", () => {
     render(
-      <CompanyDetail company={co} contacts={[]} interactions={[]} onSave={vi.fn()} />,
+      <CompanyDetail contacts={[]} interactions={[]} onSave={vi.fn()} />,
     );
     expect(screen.getByRole("button", { name: "Telefon" })).toBeTruthy();
   });
@@ -106,7 +87,7 @@ describe("CompanyDetail", () => {
   it("calls onSave when the embedded form saves (LOG-03)", () => {
     const onSave = vi.fn();
     render(
-      <CompanyDetail company={co} contacts={[]} interactions={[]} onSave={onSave} />,
+      <CompanyDetail contacts={[]} interactions={[]} onSave={onSave} />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Gesprochen" }));
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "Notiz." } });
