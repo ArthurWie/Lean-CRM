@@ -1,7 +1,10 @@
-/* App.css — the page chrome around the table, lifted verbatim from
-   lean-crm-mockup.html (UI-01) for layout fidelity: base reset + body,
-   the sidebar shell, the .head title block, and load/error states.
-   The table grid itself lives in CompanyTable.css. Navy/2px corporate look. */
+/* App.css — the page chrome around the table: base reset + body, the sidebar
+   shell, the .head title block, and load/error states. The table grid itself
+   lives in CompanyTable.css. Design direction B (Linear / SaaS): light page,
+   LIGHT sidebar, violet accent. Tokens from design-explorations.html
+   [data-theme="B"]; the B :root tokens live in CompanyTable.css and are shared
+   app-wide via the single bundle. No web-font import — Inter is used only if
+   already bundled; system-ui / "Segoe UI" is the actual fallback render. */
 
 * {
   box-sizing: border-box;
@@ -9,10 +12,9 @@
   padding: 0;
 }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial,
-    sans-serif;
-  background: var(--bg, #eef1f4);
-  color: var(--ink, #1f2733);
+  font-family: "Inter", system-ui, "Segoe UI", sans-serif;
+  background: var(--bg, #fbfbfd);
+  color: var(--ink, #1c1f2a);
   font-size: 13.5px;
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
@@ -25,8 +27,8 @@ body {
 
 .sidebar {
   width: 188px;
-  background: var(--surface);
-  border-right: 1px solid var(--line);
+  background: #fff;
+  border-right: 1px solid #ececf1;
   padding: 18px 12px;
   position: sticky;
   top: 0;
@@ -43,11 +45,12 @@ body {
   font-weight: 700;
   font-size: 15px;
   letter-spacing: -0.2px;
+  color: #181b26;
 }
 .brand .dot {
   width: 20px;
   height: 20px;
-  border-radius: 2px;
+  border-radius: 50%;
   background: var(--accent);
 }
 .nav {
@@ -55,8 +58,8 @@ body {
   align-items: center;
   gap: 9px;
   padding: 8px 11px;
-  border-radius: 2px;
-  color: var(--soft);
+  border-radius: 8px;
+  color: #5b6172;
   font-weight: 500;
   cursor: pointer;
   border: none;
@@ -66,11 +69,11 @@ body {
   font-size: 13.5px;
 }
 .nav:hover {
-  background: var(--bg);
+  background: #f1f1f6;
   color: var(--ink);
 }
 .nav.active {
-  background: var(--accent-soft);
+  background: #f1f1f6;
   color: var(--accent);
   font-weight: 600;
 }
@@ -78,8 +81,8 @@ body {
   margin-top: auto;
   padding: 8px;
   font-size: 11px;
-  color: var(--faint);
-  border-top: 1px solid var(--line);
+  color: #b3b7c2;
+  border-top: 1px solid #ececf1;
 }
 
 .main {
@@ -108,13 +111,13 @@ body {
   padding: 22px 2px;
 }
 .state-error {
-  border: 1px solid #d8b8b8;
-  background: var(--hot-soft);
-  border-radius: 2px;
+  border: 1px solid #f0c9c9;
+  background: #fdecec;
+  border-radius: 8px;
   padding: 13px 15px;
 }
 .state-error .state-h {
-  color: var(--hot);
+  color: #c0392b;
   font-weight: 700;
   font-size: 13.5px;
   margin-bottom: 4px;
