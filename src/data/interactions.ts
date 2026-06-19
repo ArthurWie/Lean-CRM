@@ -60,13 +60,13 @@ export async function logInteraction(input: {
     bearbeiter: "Arthur", // D-08: single-user default (column also defaults this)
   });
 
-  // 🔥 sets the existing boolean integer-mode column.
-  if (input.heiss) {
-    await db
-      .update(firmen)
-      .set({ heiss: true })
-      .where(eq(firmen.id, input.firma_id));
-  }
+  // 🔥 writes the boolean integer-mode column unconditionally on every log, so
+  // un-ticking the checkbox actually clears it (WR-02: heiss is a toggle, not a
+  // one-way ratchet). LogForm always emits a concrete boolean; default false.
+  await db
+    .update(firmen)
+    .set({ heiss: input.heiss ?? false })
+    .where(eq(firmen.id, input.firma_id));
 
   // Phase 2 only CAPTURES the follow-up (no surfacing — D-05).
   if (input.followup) {
