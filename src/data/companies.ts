@@ -6,10 +6,18 @@ import { firmen, kontakte, kontakt_mails } from "../db/schema";
 import { eq } from "drizzle-orm";
 
 export type Company = typeof firmen.$inferSelect;
+export type Contact = typeof kontakte.$inferSelect;
 
 export async function listCompanies(): Promise<Company[]> {
   // Sorting/filtering is done in the UI for Phase 1.
   return db.select().from(firmen);
+}
+
+// DB-06: the contacts (Ansprechpartner) shown in a company's detail panel.
+// One company's kontakte rows; the UI renders name/rolle (emails are a separate
+// table not surfaced this phase). Components never call drizzle — they call this.
+export async function listContacts(firmaId: string): Promise<Contact[]> {
+  return db.select().from(kontakte).where(eq(kontakte.firma_id, firmaId));
 }
 
 // DB-05/D-07: record that this firma's detail/history was opened, clearing the

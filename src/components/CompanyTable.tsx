@@ -8,12 +8,24 @@
 // palette, status pills, dead-row dimming, 🔥 as the sole emoji. The ONE wired
 // interaction is the Aktiv / Tot+Geparkt filter (DB-03); everything else (row click,
 // Tel/Mail/in OS actions, search, + Neue Firma, CSV importieren) is render-only this phase.
-import { useState } from "react";
-import type { Company } from "../data/companies";
+import { Fragment, useState } from "react";
+import type { Company, Contact } from "../data/companies";
+import type { Interaction } from "../data/interactions";
 import type { Status } from "../types";
+import { deriveNewestNote, deriveNextStep, hasNewNote } from "../data/derive";
+import { CompanyDetail } from "./CompanyDetail";
+import type { LogEntry } from "./LogForm";
 import "./CompanyTable.css";
 
 const DEAD = new Set<Status>(["Tot", "Geparkt"]);
+
+// "2026-06-09T08:00:00Z" → "09.06." (Notizen column source label).
+function shortDate(iso: string): string {
+  const d = new Date(iso);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dd}.${mm}.`;
+}
 
 // Status pill → mockup variant class (UI-SPEC Status pill → color map).
 const PILL_VARIANT: Record<Status, string> = {
@@ -30,12 +42,37 @@ const EMPTY = "—"; // em dash for empty cells
 
 type Props = {
   companies: Company[];
+  // Per-company interactions (loaded by App), keyed by firma id. Drives the
+  // derived Notizen/Nächster-Schritt columns, the blue dot, and the detail panel.
+  interactionsByFirma?: Record<string, Interaction[]>;
+  // Per-company contacts (loaded lazily by App on open), keyed by firma id.
+  contactsByFirma?: Record<string, Contact[]>;
+  // Called when a row is expanded (App uses it for markViewed + lazy loads).
+  onOpenRow?: (firmaId: string) => void;
+  // Called when the embedded LogForm saves; App logs the interaction + refreshes.
+  onSave?: (firmaId: string, entry: LogEntry) => void;
   // Test-only seam: lets a test render with dead rows already visible.
   showDeadInitially?: boolean;
 };
 
-export function CompanyTable({ companies, showDeadInitially = false }: Props) {
+export function CompanyTable({
+  companies,
+  interactionsByFirma = {},
+  contactsByFirma = {},
+  onOpenRow,
+  onSave,
+  showDeadInitially = false,
+}: Props) {
   const [showDead, setShowDead] = useState(showDeadInitially);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  function toggleRow(id: string) {
+    setExpandedId((cur) => {
+      const next = cur === id ? null : id;
+      if (next === id) onOpenRow?.(id); // opening → markViewed (DB-05)
+      return next;
+    });
+  }
 
   const visible = companies.filter((c) => showDead || !DEAD.has(c.status as Status));
 
@@ -83,32 +120,76 @@ export function CompanyTable({ companies, showDeadInitially = false }: Props) {
           <tbody>
             {visible.map((c) => {
               const dead = DEAD.has(c.status as Status);
+              const interactions = interactionsByFirma[c.id] ?? [];
+              const contacts = contactsByFirma[c.id] ?? [];
+
+              // Derived columns (Plan 02 pure derive module).
+              const newest = deriveNewestNote(interactions);
+              const latest = interactions.length
+                ? [...interactions].reduce((a, b) => (b.datum > a.datum ? b : a))
+                : undefined;
+              const nextStep = deriveNextStep(latest);
+              const showDot = hasNewNote(newest, c.last_viewed);
+
+              // First contact's name for the Ansprechpartner column (full list in panel).
+              const apName = contacts.find((k) => k.name)?.name ?? null;
+
+              const expanded = expandedId === c.id;
+
               return (
-                <tr key={c.id} className={dead ? "r-main row-dead" : "r-main"}>
-                  <td className="co">
-                    {c.name}
-                    {c.heiss && <span className="fire">🔥</span>}
-                  </td>
-                  <td className="dim">{c.branche || EMPTY}</td>
-                  <td className="dim">{c.groesse || EMPTY}</td>
-                  {/* Contacts live in a separate table not loaded in Phase 1. */}
-                  <td className="dim">{EMPTY}</td>
-                  <td>
-                    <span className="cIcons">
-                      <span className="ci off">Tel</span>
-                      <span className="ci off">Mail</span>
-                      <span className="ci off">in</span>
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`stp ${PILL_VARIANT[c.status as Status]}`}>
-                      {c.status}
-                    </span>
-                  </td>
-                  <td className="next dim">{EMPTY}</td>
-                  <td className="notiz dim">{EMPTY}</td>
-                  <td className="lessons dim">{c.lessons || EMPTY}</td>
-                </tr>
+                <Fragment key={c.id}>
+                  <tr
+                    className={dead ? "r-main row-dead" : "r-main"}
+                    onClick={() => toggleRow(c.id)}
+                  >
+                    <td className="co">
+                      {c.name}
+                      {c.heiss && <span className="fire">🔥</span>}
+                    </td>
+                    <td className="dim">{c.branche || EMPTY}</td>
+                    <td className="dim">{c.groesse || EMPTY}</td>
+                    <td className="dim">{apName || EMPTY}</td>
+                    <td>
+                      <span className="cIcons">
+                        <span className="ci off">Tel</span>
+                        <span className="ci off">Mail</span>
+                        <span className="ci off">in</span>
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`stp ${PILL_VARIANT[c.status as Status]}`}>
+                        {c.status}
+                      </span>
+                    </td>
+                    <td className="next dim">{nextStep || EMPTY}</td>
+                    <td className="notiz dim">
+                      {newest ? (
+                        <>
+                          {showDot && <span className="ndot" />}
+                          <span className="src">
+                            {newest.kanal || EMPTY} {shortDate(newest.datum)}
+                          </span>
+                          <span className="txt">{newest.notiz || EMPTY}</span>
+                        </>
+                      ) : (
+                        EMPTY
+                      )}
+                    </td>
+                    <td className="lessons dim">{c.lessons || EMPTY}</td>
+                  </tr>
+                  {expanded && (
+                    <tr className="detail">
+                      <td colSpan={9}>
+                        <CompanyDetail
+                          company={c}
+                          contacts={contacts}
+                          interactions={interactions}
+                          onSave={(entry) => onSave?.(c.id, entry)}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               );
             })}
             {companies.length === 0 && (

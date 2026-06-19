@@ -3,12 +3,31 @@
 // CompanyTable. App.tsx imports the data layer ONLY — never drizzle or the
 // schema (DATA-02). The table itself is CompanyTable (Plan 02).
 import { useEffect, useState } from "react";
-import { listCompanies, seedIfEmpty, type Company } from "./data/companies";
+import {
+  listCompanies,
+  listContacts,
+  markViewed,
+  seedIfEmpty,
+  type Company,
+  type Contact,
+} from "./data/companies";
+import {
+  listInteractions,
+  logInteraction,
+  type Interaction,
+} from "./data/interactions";
 import { CompanyTable } from "./components/CompanyTable";
+import type { LogEntry } from "./components/LogForm";
 import "./App.css";
 
 function App() {
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [interactionsByFirma, setInteractionsByFirma] = useState<
+    Record<string, Interaction[]>
+  >({});
+  const [contactsByFirma, setContactsByFirma] = useState<
+    Record<string, Contact[]>
+  >({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,6 +44,48 @@ function App() {
       }
     })();
   }, []);
+
+  // Load one company's interactions + contacts into the per-firma maps.
+  async function loadFirma(firmaId: string) {
+    const [interactions, contacts] = await Promise.all([
+      listInteractions(firmaId),
+      listContacts(firmaId),
+    ]);
+    setInteractionsByFirma((m) => ({ ...m, [firmaId]: interactions }));
+    setContactsByFirma((m) => ({ ...m, [firmaId]: contacts }));
+  }
+
+  // Opening a row: clear the blue dot (markViewed, DB-05), lazily load its
+  // interactions/contacts, and refresh the companies list so last_viewed updates.
+  async function handleOpenRow(firmaId: string) {
+    try {
+      await markViewed(firmaId);
+      await loadFirma(firmaId);
+      setCompanies(await listCompanies());
+    } catch (e) {
+      console.error("Failed to open row:", e);
+    }
+  }
+
+  // Saving a log: persist the interaction (status re-derived in the data layer),
+  // then reload that company's interactions AND the companies list so the row's
+  // derived columns (Status / Notizen / Nächster Schritt) update (LOG-03/04).
+  async function handleSave(firmaId: string, entry: LogEntry) {
+    try {
+      await logInteraction({
+        firma_id: firmaId,
+        kanal: entry.kanal,
+        outcome: entry.outcome,
+        notiz: entry.notiz,
+        heiss: entry.heiss,
+        followup: entry.followup ?? undefined,
+      });
+      await loadFirma(firmaId);
+      setCompanies(await listCompanies());
+    } catch (e) {
+      console.error("Failed to save interaction:", e);
+    }
+  }
 
   return (
     <div className="app">
@@ -64,7 +125,13 @@ function App() {
         ) : loading ? (
           <div className="state-loading">Lädt…</div>
         ) : (
-          <CompanyTable companies={companies} />
+          <CompanyTable
+            companies={companies}
+            interactionsByFirma={interactionsByFirma}
+            contactsByFirma={contactsByFirma}
+            onOpenRow={handleOpenRow}
+            onSave={handleSave}
+          />
         )}
       </main>
     </div>
