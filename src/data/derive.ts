@@ -77,7 +77,9 @@ const NEXT_STEP: Record<string, string> = {
 const NEXT_STEP_DEFAULT = "nachfassen";
 
 // Return the latest interaction by `datum` (max ISO string) without mutating input.
-function latestInteraction<T extends { datum: string }>(
+// Exported so the UI (CompanyTable) reuses the same tie-breaking/ordering rule
+// instead of an inline copy that could silently diverge (WR-04).
+export function latestInteraction<T extends { datum: string }>(
   interactions: readonly T[],
 ): T | undefined {
   if (interactions.length === 0) return undefined;

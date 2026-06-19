@@ -12,7 +12,12 @@ import { Fragment, useState } from "react";
 import type { Company, Contact } from "../data/companies";
 import type { Interaction } from "../data/interactions";
 import type { Status } from "../types";
-import { deriveNewestNote, deriveNextStep, hasNewNote } from "../data/derive";
+import {
+  deriveNewestNote,
+  deriveNextStep,
+  hasNewNote,
+  latestInteraction,
+} from "../data/derive";
 import { CompanyDetail } from "./CompanyDetail";
 import type { LogEntry } from "./LogForm";
 import { shortDate } from "../utils/date";
@@ -118,9 +123,7 @@ export function CompanyTable({
 
               // Derived columns (Plan 02 pure derive module).
               const newest = deriveNewestNote(interactions);
-              const latest = interactions.length
-                ? [...interactions].reduce((a, b) => (b.datum > a.datum ? b : a))
-                : undefined;
+              const latest = latestInteraction(interactions);
               const nextStep = deriveNextStep(latest);
               const showDot = hasNewNote(newest, c.last_viewed);
 
