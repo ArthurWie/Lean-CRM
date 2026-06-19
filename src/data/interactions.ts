@@ -13,19 +13,28 @@ import type { ManualOverride } from "../types";
 
 export type Interaction = typeof interaktionen.$inferSelect;
 
+// The transaction handle drizzle hands to a db.transaction(async (tx) => …)
+// callback. rederive runs inside the same tx so the INSERT/UPDATE and the
+// status re-derivation either all commit or all roll back together (CR-01).
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 /**
  * Re-derive firmen.status from the current interaktionen set and persist it
  * (D-06). A sticky manual "Tot"/"Geparkt" status is preserved (D-02): when the
  * firma currently holds one of those, it is passed as the override to
  * deriveStatus so a new/edited/deleted interaction never overwrites it.
+ *
+ * Runs against the supplied transaction handle so the re-derive is atomic with
+ * the mutation that triggered it — a crash between the two can no longer leave
+ * firmen.status stale (CR-01).
  */
-async function rederive(firmaId: string): Promise<void> {
-  const interactions = await db
+async function rederive(tx: Tx, firmaId: string): Promise<void> {
+  const interactions = await tx
     .select()
     .from(interaktionen)
     .where(eq(interaktionen.firma_id, firmaId));
 
-  const firmaRows = await db
+  const firmaRows = await tx
     .select()
     .from(firmen)
     .where(eq(firmen.id, firmaId));
@@ -34,7 +43,7 @@ async function rederive(firmaId: string): Promise<void> {
     current === "Tot" || current === "Geparkt" ? current : null;
 
   const status = deriveStatus(interactions, override);
-  await db
+  await tx
     .update(firmen)
     .set({ status, updated_at: new Date().toISOString() })
     .where(eq(firmen.id, firmaId));
@@ -49,37 +58,41 @@ export async function logInteraction(input: {
   heiss?: boolean;
   followup?: { faellig_am: string; grund?: string };
 }): Promise<void> {
-  await db.insert(interaktionen).values({
-    id: crypto.randomUUID(),
-    firma_id: input.firma_id,
-    kontakt_id: input.kontakt_id ?? null,
-    datum: new Date().toISOString(), // UTC ISO, matches created_at convention
-    kanal: input.kanal,
-    outcome: input.outcome,
-    notiz: input.notiz,
-    bearbeiter: "Arthur", // D-08: single-user default (column also defaults this)
-  });
-
-  // 🔥 writes the boolean integer-mode column unconditionally on every log, so
-  // un-ticking the checkbox actually clears it (WR-02: heiss is a toggle, not a
-  // one-way ratchet). LogForm always emits a concrete boolean; default false.
-  await db
-    .update(firmen)
-    .set({ heiss: input.heiss ?? false })
-    .where(eq(firmen.id, input.firma_id));
-
-  // Phase 2 only CAPTURES the follow-up (no surfacing — D-05).
-  if (input.followup) {
-    await db.insert(followups).values({
+  // All writes + the re-derive run in one transaction so a crash can never leave
+  // the interaction row persisted with firmen.status un-re-derived (CR-01).
+  await db.transaction(async (tx) => {
+    await tx.insert(interaktionen).values({
       id: crypto.randomUUID(),
       firma_id: input.firma_id,
-      faellig_am: input.followup.faellig_am,
-      grund: input.followup.grund ?? null,
-      erledigt: false,
+      kontakt_id: input.kontakt_id ?? null,
+      datum: new Date().toISOString(), // UTC ISO, matches created_at convention
+      kanal: input.kanal,
+      outcome: input.outcome,
+      notiz: input.notiz,
+      bearbeiter: "Arthur", // D-08: single-user default (column also defaults this)
     });
-  }
 
-  await rederive(input.firma_id);
+    // 🔥 writes the boolean integer-mode column unconditionally on every log, so
+    // un-ticking the checkbox actually clears it (WR-02: heiss is a toggle, not a
+    // one-way ratchet). LogForm always emits a concrete boolean; default false.
+    await tx
+      .update(firmen)
+      .set({ heiss: input.heiss ?? false })
+      .where(eq(firmen.id, input.firma_id));
+
+    // Phase 2 only CAPTURES the follow-up (no surfacing — D-05).
+    if (input.followup) {
+      await tx.insert(followups).values({
+        id: crypto.randomUUID(),
+        firma_id: input.firma_id,
+        faellig_am: input.followup.faellig_am,
+        grund: input.followup.grund ?? null,
+        erledigt: false,
+      });
+    }
+
+    await rederive(tx, input.firma_id);
+  });
 }
 
 /**
@@ -106,8 +119,11 @@ export async function editInteraction(
   const row = rows[0];
   if (!row) return; // nothing to edit
 
-  await db.update(interaktionen).set(patch).where(eq(interaktionen.id, id));
-  await rederive(row.firma_id);
+  // Edit + re-derive atomically (CR-01).
+  await db.transaction(async (tx) => {
+    await tx.update(interaktionen).set(patch).where(eq(interaktionen.id, id));
+    await rederive(tx, row.firma_id);
+  });
 }
 
 export async function deleteInteraction(id: string): Promise<void> {
@@ -118,6 +134,9 @@ export async function deleteInteraction(id: string): Promise<void> {
   const row = rows[0];
   if (!row) return; // nothing to delete
 
-  await db.delete(interaktionen).where(eq(interaktionen.id, id));
-  await rederive(row.firma_id);
+  // Delete + re-derive atomically (CR-01).
+  await db.transaction(async (tx) => {
+    await tx.delete(interaktionen).where(eq(interaktionen.id, id));
+    await rederive(tx, row.firma_id);
+  });
 }
