@@ -18,20 +18,24 @@ const { DatabaseSync } = nodeRequire("node:sqlite") as typeof import("node:sqlit
 // plugin: .select() returns row OBJECTS, .execute() runs the statement.
 // ---------------------------------------------------------------------------
 
-const MIGRATION_PATH = fileURLToPath(
-  new URL("../../src-tauri/migrations/0001_init.sql", import.meta.url)
-);
+// Apply migrations in order, exactly as add_migrations does Rust-side.
+const MIGRATION_PATHS = [
+  "../../src-tauri/migrations/0001_init.sql",
+  "../../src-tauri/migrations/0002_add_last_viewed.sql",
+].map((p) => fileURLToPath(new URL(p, import.meta.url)));
 
 let sqlite: DatabaseSyncType;
 
 function applyMigration(dbInstance: DatabaseSyncType) {
-  const sql = readFileSync(MIGRATION_PATH, "utf8");
-  // Strip drizzle-kit's breakpoint markers; run each CREATE TABLE statement.
-  const statements = sql
-    .split("--> statement-breakpoint")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  for (const stmt of statements) dbInstance.exec(stmt);
+  for (const path of MIGRATION_PATHS) {
+    const sql = readFileSync(path, "utf8");
+    // Strip drizzle-kit's breakpoint markers; run each statement.
+    const statements = sql
+      .split("--> statement-breakpoint")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    for (const stmt of statements) dbInstance.exec(stmt);
+  }
 }
 
 vi.mock("@tauri-apps/plugin-sql", () => {

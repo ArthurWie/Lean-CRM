@@ -1,0 +1,1 @@
+ALTER TABLE `firmen` ADD `last_viewed` text;

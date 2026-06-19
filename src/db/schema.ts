@@ -17,6 +17,7 @@ export const firmen = sqliteTable("firmen", {
   lessons: text("lessons"),
   created_at: text("created_at").notNull(), // UTC ISO-8601
   updated_at: text("updated_at").notNull(), // UTC ISO-8601, set in data layer
+  last_viewed: text("last_viewed"), // UTC ISO-8601, nullable = never viewed (DB-05/D-07)
 });
 
 export const kontakte = sqliteTable("kontakte", {
