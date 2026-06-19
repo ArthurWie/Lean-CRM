@@ -1,0 +1,290 @@
+/* CompanyTable.css — lifted verbatim from lean-crm-mockup.html (UI-01).
+   Do not re-derive values; these are the locked corporate-navy / 2px / dense
+   Excel-grid tokens. Sticky first column + sticky header, single 1px grid lines,
+   status pills, dead-row dimming. min-width:1180px is what enables horizontal
+   scroll (RESEARCH Pitfall 5); .tw uses overflow:auto, never overflow:hidden. */
+
+:root {
+  --bg: #eef1f4;
+  --surface: #fff;
+  --ink: #1f2733;
+  --soft: #54606e;
+  --faint: #8a94a1;
+  --line: #cdd4dc;
+  --line2: #dde2e8;
+  --accent: #2c5282;
+  --accent-soft: #e8edf3;
+  --hot: #b23b3b;
+  --hot-soft: #f6ebeb;
+  --green: #2b7a4b;
+  --green-soft: #e9f1eb;
+  --amber: #9a6510;
+  --amber-soft: #f5efe2;
+  --dead: #9aa3ae;
+}
+
+/* Toolbar (render-only chrome for layout fidelity; only Tot/Geparkt is wired) */
+.toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  align-items: center;
+}
+.search {
+  flex: 1;
+  max-width: 280px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 7px 11px;
+  font-family: inherit;
+  font-size: 13px;
+  background: var(--surface);
+}
+.filt {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 2px;
+  padding: 7px 11px;
+  font-size: 12.5px;
+  color: var(--soft);
+  cursor: pointer;
+}
+.filt.on {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+.impbtn {
+  margin-left: auto;
+  background: var(--surface);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+  padding: 8px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.addbtn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 2px;
+  padding: 8px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Table shell + grid */
+.tw {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  overflow: auto;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 1180px;
+}
+th,
+td {
+  padding: 6px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--line2);
+  border-right: 1px solid var(--line2);
+  vertical-align: top;
+}
+th:last-child,
+td:last-child {
+  border-right: none;
+}
+th {
+  background: #dfe4ea;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #46525f;
+  font-weight: 700;
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  white-space: nowrap;
+}
+.r-main {
+  cursor: pointer;
+}
+.r-main:hover td {
+  background: #fafbfd;
+}
+td.co {
+  font-weight: 600;
+  position: sticky;
+  left: 0;
+  background: var(--surface);
+  z-index: 1;
+  white-space: nowrap;
+}
+.r-main:hover td.co {
+  background: #fafbfd;
+}
+.dim {
+  color: var(--soft);
+}
+.fire {
+  font-size: 11px;
+  margin-left: 6px;
+  vertical-align: 0;
+}
+.row-dead td {
+  color: var(--dead);
+}
+.row-dead td.co {
+  color: var(--dead);
+}
+
+/* Contact text buttons (static this phase; Tel/Mail/in OS wiring is Phase 3) */
+.cIcons {
+  display: flex;
+  gap: 4px;
+}
+.ci {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 23px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  text-decoration: none;
+  color: var(--soft);
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--surface);
+}
+.ci:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.ci.tel {
+  border-color: #b8c8da;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.ci.li.acc {
+  border-color: #bcd2c3;
+  background: var(--green-soft);
+  color: var(--green);
+}
+.ci.off {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* Status pills */
+.stp {
+  font-size: 11.5px;
+  font-weight: 600;
+  border-radius: 2px;
+  padding: 3px 8px;
+  white-space: nowrap;
+  display: inline-block;
+}
+.stp.neu {
+  background: var(--line2);
+  color: var(--soft);
+}
+.stp.offen {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+.stp.gespraech {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.stp.termin {
+  background: var(--green-soft);
+  color: var(--green);
+}
+.stp.kein {
+  background: var(--hot-soft);
+  color: var(--hot);
+}
+.stp.tot {
+  background: var(--line2);
+  color: var(--dead);
+}
+
+/* Nächster Schritt / Notizen / Lessons cells */
+.next {
+  white-space: nowrap;
+}
+.next .d {
+  font-weight: 600;
+}
+.next .d.due {
+  color: var(--hot);
+}
+.notiz {
+  max-width: 290px;
+}
+.notiz .src {
+  font-size: 11px;
+  color: var(--faint);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.notiz .ndot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-right: 5px;
+  vertical-align: middle;
+}
+.notiz .txt {
+  display: block;
+  font-size: 12.5px;
+  color: var(--soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 1px;
+}
+.lessons {
+  color: var(--soft);
+  max-width: 230px;
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Empty states (Copywriting Contract) */
+.empty {
+  padding: 28px 16px;
+  text-align: center;
+}
+.empty-h {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+.empty-b {
+  font-size: 12.5px;
+  color: var(--faint);
+}
+
+.hint {
+  font-size: 11.5px;
+  color: var(--faint);
+  margin-top: 14px;
+  font-style: italic;
+  text-align: center;
+}

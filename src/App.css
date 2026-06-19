@@ -1,0 +1,125 @@
+/* App.css — the page chrome around the table, lifted verbatim from
+   lean-crm-mockup.html (UI-01) for layout fidelity: base reset + body,
+   the sidebar shell, the .head title block, and load/error states.
+   The table grid itself lives in CompanyTable.css. Navy/2px corporate look. */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial,
+    sans-serif;
+  background: var(--bg, #eef1f4);
+  color: var(--ink, #1f2733);
+  font-size: 13.5px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 188px;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  padding: 18px 12px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 16px;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.2px;
+}
+.brand .dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 11px;
+  border-radius: 2px;
+  color: var(--soft);
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-size: 13.5px;
+}
+.nav:hover {
+  background: var(--bg);
+  color: var(--ink);
+}
+.nav.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.nav-foot {
+  margin-top: auto;
+  padding: 8px;
+  font-size: 11px;
+  color: var(--faint);
+  border-top: 1px solid var(--line);
+}
+
+.main {
+  flex: 1;
+  padding: 22px 26px;
+  max-width: 1360px;
+}
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.head h1 {
+  font-size: 18px;
+  letter-spacing: -0.3px;
+}
+.head .sub {
+  color: var(--faint);
+  font-size: 12.5px;
+}
+
+.state-loading {
+  color: var(--faint);
+  font-size: 13px;
+  padding: 22px 2px;
+}
+.state-error {
+  border: 1px solid #d8b8b8;
+  background: var(--hot-soft);
+  border-radius: 2px;
+  padding: 13px 15px;
+}
+.state-error .state-h {
+  color: var(--hot);
+  font-weight: 700;
+  font-size: 13.5px;
+  margin-bottom: 4px;
+}
+.state-error .state-b {
+  color: var(--soft);
+  font-size: 12.5px;
+}
