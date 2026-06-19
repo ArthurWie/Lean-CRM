@@ -1,0 +1,117 @@
+// @vitest-environment jsdom
+import { describe, expect, it, vi } from "vitest";
+import { render, screen, fireEvent, within } from "@testing-library/react";
+import { CompanyDetail } from "./CompanyDetail";
+import type { Company, Contact } from "../data/companies";
+import type { Interaction } from "../data/interactions";
+
+function company(over: Partial<Company> & Pick<Company, "id" | "name" | "status">): Company {
+  return {
+    fn: null,
+    branche: null,
+    groesse: null,
+    heiss: false,
+    website: null,
+    lessons: null,
+    last_viewed: null,
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+    ...over,
+  } as Company;
+}
+
+function contact(over: Partial<Contact> & Pick<Contact, "id" | "firma_id" | "name">): Contact {
+  return {
+    rolle: null,
+    telefon: null,
+    linkedin: null,
+    li_angenommen: false,
+    relevant: false,
+    ...over,
+  } as Contact;
+}
+
+function interaction(
+  over: Partial<Interaction> & Pick<Interaction, "id" | "firma_id" | "datum">,
+): Interaction {
+  return {
+    kontakt_id: null,
+    kanal: "Telefon",
+    outcome: "Gesprochen",
+    notiz: "",
+    bearbeiter: "Arthur",
+    ...over,
+  } as Interaction;
+}
+
+describe("CompanyDetail", () => {
+  const co = company({ id: "f1", name: "Himmelhoch GmbH", status: "Im Gespräch" });
+
+  it("renders the Verlauf (Notizen) heading and one history line per interaction, newest-first (DB-06)", () => {
+    const interactions: Interaction[] = [
+      interaction({
+        id: "i2",
+        firma_id: "f1",
+        datum: "2026-06-09T08:00:00Z",
+        kanal: "Telefon",
+        notiz: "Sehr enthusiastisch.",
+      }),
+      interaction({
+        id: "i1",
+        firma_id: "f1",
+        datum: "2026-06-02T08:00:00Z",
+        kanal: "LinkedIn",
+        notiz: "Vernetzungsanfrage angenommen.",
+      }),
+    ];
+    render(
+      <CompanyDetail
+        company={co}
+        contacts={[]}
+        interactions={interactions}
+        onSave={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Verlauf (Notizen)")).toBeTruthy();
+    const hist = document.querySelector(".hist") as HTMLElement;
+    const lines = within(hist).getAllByText(/Arthur|enthusiastisch|angenommen/);
+    // The two notes both render; newest (Telefon 09.06) appears before the older one.
+    const text = hist.textContent ?? "";
+    expect(text.indexOf("Sehr enthusiastisch.")).toBeLessThan(
+      text.indexOf("Vernetzungsanfrage angenommen."),
+    );
+    expect(lines.length).toBeGreaterThan(0);
+  });
+
+  it("renders the Ansprechpartner block when contacts are present (DB-06)", () => {
+    render(
+      <CompanyDetail
+        company={co}
+        contacts={[contact({ id: "k1", firma_id: "f1", name: "Eva Mandl", rolle: "Geschäftsführerin" })]}
+        interactions={[]}
+        onSave={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Ansprechpartner")).toBeTruthy();
+    expect(screen.getByText("Eva Mandl")).toBeTruthy();
+  });
+
+  it("embeds the LogForm (Telefon channel button present) (DB-06/LOG-01)", () => {
+    render(
+      <CompanyDetail company={co} contacts={[]} interactions={[]} onSave={vi.fn()} />,
+    );
+    expect(screen.getByRole("button", { name: "Telefon" })).toBeTruthy();
+  });
+
+  it("calls onSave when the embedded form saves (LOG-03)", () => {
+    const onSave = vi.fn();
+    render(
+      <CompanyDetail company={co} contacts={[]} interactions={[]} onSave={onSave} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Gesprochen" }));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "Notiz." } });
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave.mock.calls[0][0].outcome).toBe("Gesprochen");
+  });
+});

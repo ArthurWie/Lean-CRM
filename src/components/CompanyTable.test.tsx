@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import { CompanyTable } from "./CompanyTable";
 import type { Company } from "../data/companies";
+import type { Interaction } from "../data/interactions";
 
 // Minimal Company fixtures. Only the fields the table reads are meaningful;
 // the rest satisfy the type. created_at/updated_at are required strings.
@@ -14,10 +15,24 @@ function company(over: Partial<Company> & Pick<Company, "id" | "name" | "status"
     heiss: false,
     website: null,
     lessons: null,
+    last_viewed: null,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
     ...over,
   } as Company;
+}
+
+function interaction(
+  over: Partial<Interaction> & Pick<Interaction, "id" | "firma_id" | "datum">,
+): Interaction {
+  return {
+    kontakt_id: null,
+    kanal: "Telefon",
+    outcome: "Gesprochen",
+    notiz: "",
+    bearbeiter: "Arthur",
+    ...over,
+  } as Interaction;
 }
 
 const HEADERS = [
@@ -116,5 +131,51 @@ describe("CompanyTable", () => {
     expect(
       screen.queryByText(/Keine aktiven Firmen/),
     ).toBeTruthy();
+  });
+
+  it("clicking a row reveals an inline detail region and a second click hides it (DB-06)", () => {
+    render(
+      <CompanyTable
+        companies={[company({ id: "1", name: "Himmelhoch GmbH", status: "Im Gespräch" })]}
+        interactionsByFirma={{ "1": [] }}
+      />,
+    );
+    expect(screen.queryByText("Verlauf (Notizen)")).toBeNull();
+    fireEvent.click(screen.getByText("Himmelhoch GmbH"));
+    expect(screen.queryByText("Verlauf (Notizen)")).toBeTruthy();
+    fireEvent.click(screen.getByText("Himmelhoch GmbH"));
+    expect(screen.queryByText("Verlauf (Notizen)")).toBeNull();
+  });
+
+  it("calls onOpenRow when a row is expanded (DB-05/markViewed)", () => {
+    const onOpenRow = vi.fn();
+    render(
+      <CompanyTable
+        companies={[company({ id: "1", name: "Himmelhoch GmbH", status: "Neu" })]}
+        interactionsByFirma={{ "1": [] }}
+        onOpenRow={onOpenRow}
+      />,
+    );
+    fireEvent.click(screen.getByText("Himmelhoch GmbH"));
+    expect(onOpenRow).toHaveBeenCalledWith("1");
+  });
+
+  it("shows a blue dot on Notizen when the newest note is newer than last_viewed, and none when older (DB-05)", () => {
+    render(
+      <CompanyTable
+        companies={[
+          company({ id: "new", name: "Neu Notiz GmbH", status: "Im Gespräch", last_viewed: "2026-06-01T00:00:00Z" }),
+          company({ id: "old", name: "Alt Notiz GmbH", status: "Im Gespräch", last_viewed: "2026-06-30T00:00:00Z" }),
+        ]}
+        interactionsByFirma={{
+          new: [interaction({ id: "i1", firma_id: "new", datum: "2026-06-10T00:00:00Z", notiz: "frisch" })],
+          old: [interaction({ id: "i2", firma_id: "old", datum: "2026-06-10T00:00:00Z", notiz: "alt" })],
+        }}
+      />,
+    );
+    const newCell = screen.getByText("frisch").closest("td");
+    const oldCell = screen.getByText("alt").closest("td");
+    expect((newCell as HTMLElement).querySelector(".ndot")).toBeTruthy();
+    expect((oldCell as HTMLElement).querySelector(".ndot")).toBeNull();
   });
 });
