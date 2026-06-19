@@ -6,7 +6,8 @@
     "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
     "strict": true,
-    "noEmit": true
+    "emitDeclarationOnly": true,
+    "outDir": "./.tsnode-out"
   },
   "include": ["vite.config.ts", "vitest.config.ts", "drizzle.config.ts"]
 }
