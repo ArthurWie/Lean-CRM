@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Least-privilege capability set for Phase 1: SQL access only (no shell/fs scopes). Mitigates T-01-EOP.",
+  "windows": ["main"],
+  "permissions": ["core:default", "sql:default"]
+}

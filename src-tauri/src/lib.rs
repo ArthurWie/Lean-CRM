@@ -1,0 +1,8 @@
+// Placeholder run() for Task 1 scaffold. Task 2 wires tauri-plugin-sql +
+// add_migrations to materialize the schema into clickwise.db.
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
