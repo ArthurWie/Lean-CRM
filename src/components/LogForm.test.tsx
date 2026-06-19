@@ -71,14 +71,20 @@ describe("LogForm", () => {
       return within(out).getAllByRole("button")[i].className.includes("s");
     });
     expect(selected).toEqual([]);
-    expect(screen.getByRole("button", { name: "Speichern" })).toBeDisabled();
+    expect(
+      (screen.getByRole("button", { name: "Speichern" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
   });
 
   it("disables Speichern until an outcome is chosen (LOG-01/03)", () => {
     render(<LogForm onSave={vi.fn()} />);
-    expect(screen.getByRole("button", { name: "Speichern" })).toBeDisabled();
+    expect(
+      (screen.getByRole("button", { name: "Speichern" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Gesprochen" }));
-    expect(screen.getByRole("button", { name: "Speichern" })).not.toBeDisabled();
+    expect(
+      (screen.getByRole("button", { name: "Speichern" }) as HTMLButtonElement).disabled,
+    ).toBe(false);
   });
 
   it("emits onSave with kanal/outcome/notiz on Speichern (LOG-01/03)", () => {
