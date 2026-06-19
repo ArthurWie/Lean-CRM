@@ -1,0 +1,120 @@
+// @vitest-environment jsdom
+import { describe, expect, it } from "vitest";
+import { render, screen, fireEvent, within } from "@testing-library/react";
+import { CompanyTable } from "./CompanyTable";
+import type { Company } from "../data/companies";
+
+// Minimal Company fixtures. Only the fields the table reads are meaningful;
+// the rest satisfy the type. created_at/updated_at are required strings.
+function company(over: Partial<Company> & Pick<Company, "id" | "name" | "status">): Company {
+  return {
+    fn: null,
+    branche: null,
+    groesse: null,
+    heiss: false,
+    website: null,
+    lessons: null,
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+    ...over,
+  } as Company;
+}
+
+const HEADERS = [
+  "Unternehmen",
+  "Branche",
+  "Größe",
+  "Ansprechpartner",
+  "Kontakt",
+  "Status",
+  "Nächster Schritt",
+  "Notizen",
+  "Lessons learned",
+];
+
+describe("CompanyTable", () => {
+  it("renders exactly the nine column headers in order (DB-01)", () => {
+    render(<CompanyTable companies={[company({ id: "1", name: "Acme GmbH", status: "Neu" })]} />);
+    const ths = screen.getAllByRole("columnheader").map((th) => th.textContent?.trim());
+    expect(ths).toEqual(HEADERS);
+  });
+
+  it("hides Tot/Geparkt rows by default and reveals them via the Tot/Geparkt filter (DB-03)", () => {
+    render(
+      <CompanyTable
+        companies={[
+          company({ id: "1", name: "Lebendig GmbH", status: "Offen" }),
+          company({ id: "2", name: "Verstorben GmbH", status: "Tot" }),
+          company({ id: "3", name: "Geparkt GmbH", status: "Geparkt" }),
+        ]}
+      />,
+    );
+
+    // Default: only the active company is visible.
+    expect(screen.queryByText("Lebendig GmbH")).toBeTruthy();
+    expect(screen.queryByText("Verstorben GmbH")).toBeNull();
+    expect(screen.queryByText("Geparkt GmbH")).toBeNull();
+
+    // Toggle the Tot/Geparkt filter on.
+    fireEvent.click(screen.getByRole("button", { name: "Tot/Geparkt" }));
+
+    expect(screen.queryByText("Verstorben GmbH")).toBeTruthy();
+    expect(screen.queryByText("Geparkt GmbH")).toBeTruthy();
+  });
+
+  it("renders the 🔥 glyph beside a hot company name and nowhere else (UI-02)", () => {
+    render(
+      <CompanyTable
+        companies={[
+          company({ id: "1", name: "Heisse GmbH", status: "Im Gespräch", heiss: true }),
+          company({ id: "2", name: "Kalte GmbH", status: "Neu", heiss: false }),
+        ]}
+      />,
+    );
+
+    const hot = screen.getByText("Heisse GmbH").closest("td");
+    const cold = screen.getByText("Kalte GmbH").closest("td");
+    expect(within(hot as HTMLElement).queryByText("🔥")).toBeTruthy();
+    expect(within(cold as HTMLElement).queryByText("🔥")).toBeNull();
+  });
+
+  it("maps each status to its mockup pill variant class", () => {
+    render(
+      <CompanyTable
+        showDeadInitially
+        companies={[
+          company({ id: "1", name: "A", status: "Neu" }),
+          company({ id: "2", name: "B", status: "Offen" }),
+          company({ id: "3", name: "C", status: "Im Gespräch" }),
+          company({ id: "4", name: "D", status: "Termin" }),
+          company({ id: "5", name: "E", status: "Kein Interesse" }),
+          company({ id: "6", name: "F", status: "Tot" }),
+          company({ id: "7", name: "G", status: "Geparkt" }),
+        ]}
+      />,
+    );
+    const pillClass = (text: string) =>
+      screen.getByText(text).className;
+    expect(pillClass("Neu")).toContain("neu");
+    expect(pillClass("Offen")).toContain("offen");
+    expect(pillClass("Im Gespräch")).toContain("gespraech");
+    expect(pillClass("Termin")).toContain("termin");
+    expect(pillClass("Kein Interesse")).toContain("kein");
+    expect(pillClass("Tot")).toContain("tot");
+    expect(pillClass("Geparkt")).toContain("tot");
+  });
+
+  it("shows the no-companies empty state when given an empty list", () => {
+    render(<CompanyTable companies={[]} />);
+    expect(screen.queryByText("Noch keine Firmen")).toBeTruthy();
+  });
+
+  it("shows the filter-empty state when the active filter hides everything", () => {
+    render(
+      <CompanyTable companies={[company({ id: "1", name: "Tote GmbH", status: "Tot" })]} />,
+    );
+    expect(
+      screen.queryByText(/Keine aktiven Firmen/),
+    ).toBeTruthy();
+  });
+});
