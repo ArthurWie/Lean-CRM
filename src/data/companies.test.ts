@@ -56,9 +56,11 @@ vi.mock("@tauri-apps/plugin-sql", () => {
 });
 
 // Import AFTER the mock is registered.
-const { seedIfEmpty, listCompanies } = await import("./companies");
+const { seedIfEmpty, listCompanies, markViewed, setManualStatus } = await import(
+  "./companies"
+);
 const { db } = await import("../db/client");
-const { kontakte, kontakt_mails } = await import("../db/schema");
+const { firmen, kontakte, kontakt_mails } = await import("../db/schema");
 const { eq } = await import("drizzle-orm");
 
 beforeEach(() => {
@@ -107,5 +109,37 @@ describe("companies data layer", () => {
     const afterSecond = (await listCompanies()).length;
     expect(afterSecond).toBe(afterFirst);
     expect(afterFirst).toBe(3); // the three seeded fixtures
+  });
+
+  it("markViewed writes a UTC ISO last_viewed on the target firma only (DB-05)", async () => {
+    await seedIfEmpty();
+    const before = await listCompanies();
+    const himmelhoch = before.find((c) => c.name === "Himmelhoch GmbH")!;
+    const other = before.find((c) => c.name === "Chapter 4 GmbH")!;
+    expect(himmelhoch.last_viewed).toBeNull(); // never viewed yet
+
+    await markViewed(himmelhoch.id);
+
+    const after = await listCompanies();
+    const viewed = after.find((c) => c.id === himmelhoch.id)!;
+    const untouched = after.find((c) => c.id === other.id)!;
+    expect(viewed.last_viewed).toMatch(/^\d{4}-\d{2}-\d{2}T/); // UTC ISO
+    expect(untouched.last_viewed).toBeNull(); // only the target firma changed
+  });
+
+  it("setManualStatus sets the sticky Geparkt override (D-02)", async () => {
+    await seedIfEmpty();
+    const himmelhoch = (await listCompanies()).find(
+      (c) => c.name === "Himmelhoch GmbH"
+    )!;
+    expect(himmelhoch.status).toBe("Im Gespräch");
+
+    await setManualStatus(himmelhoch.id, "Geparkt");
+
+    const [updated] = await db
+      .select()
+      .from(firmen)
+      .where(eq(firmen.id, himmelhoch.id));
+    expect(updated.status).toBe("Geparkt");
   });
 });
