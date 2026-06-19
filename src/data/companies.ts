@@ -3,12 +3,36 @@
 // This and src/db/client.ts are the ONLY modules that import drizzle/schema.
 import { db } from "../db/client";
 import { firmen, kontakte, kontakt_mails } from "../db/schema";
+import { eq } from "drizzle-orm";
 
 export type Company = typeof firmen.$inferSelect;
 
 export async function listCompanies(): Promise<Company[]> {
   // Sorting/filtering is done in the UI for Phase 1.
   return db.select().from(firmen);
+}
+
+// DB-05/D-07: record that this firma's detail/history was opened, clearing the
+// "new note since last viewed" blue dot. Writes the current UTC ISO timestamp.
+export async function markViewed(firmaId: string): Promise<void> {
+  await db
+    .update(firmen)
+    .set({ last_viewed: new Date().toISOString() })
+    .where(eq(firmen.id, firmaId));
+}
+
+// D-02: the ONE allowed hand-set status path. "Tot"/"Geparkt" are sticky manual
+// overrides (the data layer's rederive() preserves them); they are never derived
+// from an outcome. This does NOT touch interactions. Clearing the override /
+// returning to a derived status is out of scope for Phase 2.
+export async function setManualStatus(
+  firmaId: string,
+  status: "Tot" | "Geparkt",
+): Promise<void> {
+  await db
+    .update(firmen)
+    .set({ status, updated_at: new Date().toISOString() })
+    .where(eq(firmen.id, firmaId));
 }
 
 export async function seedIfEmpty(): Promise<void> {
