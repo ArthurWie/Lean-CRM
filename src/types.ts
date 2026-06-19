@@ -8,3 +8,16 @@ export type Status =
   | "Kein Interesse"
   | "Tot"
   | "Geparkt";
+
+// The ONE allowed manual status override (D-02): "Tot"/"Geparkt" are set by hand,
+// not derived from any outcome, and are sticky. `null` = no override (derive normally).
+export type ManualOverride = "Tot" | "Geparkt" | null;
+
+// The newest interaction shaped for display (D-08 dated note: date · channel · bearbeiter
+// + one-sentence text). Shared by the pure derivation module and the data layer.
+export type DerivedNote = {
+  datum: string;
+  kanal: string;
+  bearbeiter: string;
+  notiz: string;
+};
