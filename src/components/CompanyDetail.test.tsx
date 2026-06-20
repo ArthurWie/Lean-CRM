@@ -185,10 +185,12 @@ describe("CompanyDetail", () => {
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "+ Ansprechpartner" }));
-    // The new-person name field appears; fill it and commit (Speichern).
-    const nameInput = screen.getByPlaceholderText("Name");
+    // The new-person name field appears; fill it and commit (Speichern). Scope to
+    // the add block so we don't collide with the LogForm's own Speichern button.
+    const addBlock = document.querySelector(".person-add") as HTMLElement;
+    const nameInput = within(addBlock).getByPlaceholderText("Name");
     fireEvent.change(nameInput, { target: { value: "Neuer Kontakt" } });
-    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    fireEvent.click(within(addBlock).getByRole("button", { name: "Speichern" }));
     expect(onAddContact).toHaveBeenCalledTimes(1);
     expect(onAddContact.mock.calls[0][0]).toMatchObject({ name: "Neuer Kontakt" });
   });

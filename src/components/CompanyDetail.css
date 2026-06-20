@@ -155,3 +155,82 @@
   color: var(--ink);
   border-color: var(--faint);
 }
+
+/* D-08 (Plan 03-04): editable Ansprechpartner block. Each person is a row of
+   inline inputs (.cell-input metrics from CompanyTable.css: 7px 11px, radius 8,
+   13px) with a right-aligned action area (Entfernen / inline confirm). The dashed
+   --line separators between persons stay (reuse .person). Text actions only —
+   corporate look, no playful color; the destructive "Ja" reuses .del-yes. */
+.person-edit {
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.person-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+.person-fields .cell-input {
+  font-size: 13px;
+}
+/* The name field spans both columns and reads a touch stronger (it is the .pn). */
+.person-fields .pn-input {
+  grid-column: 1 / -1;
+  font-weight: 600;
+}
+.person-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+.person-remove:hover {
+  color: var(--hot);
+  border-color: var(--hot);
+}
+
+/* "+ Ansprechpartner" add affordance — a neutral text action below the list. */
+.add-contact {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 8px;
+  padding: 4px 9px;
+  border-radius: 2px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--soft);
+  cursor: pointer;
+}
+.add-contact:hover {
+  color: var(--ink);
+  border-color: var(--faint);
+}
+
+/* The add-person Speichern/Abbrechen actions reuse the existing .save/.cancel
+   look from the log/add chrome (defined app-wide); ensure they sit inline here. */
+.person-add .person-actions .save,
+.person-add .person-actions .cancel {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 2px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--soft);
+  cursor: pointer;
+}
+.person-add .person-actions .save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.person-add .person-actions .save:not(:disabled):hover,
+.person-add .person-actions .cancel:hover {
+  color: var(--ink);
+  border-color: var(--faint);
+}

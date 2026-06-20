@@ -24,6 +24,12 @@ import {
   updateInteractionNote,
   type Interaction,
 } from "./data/interactions";
+import {
+  addContact,
+  updateContact,
+  deleteContact,
+  setContactEmails,
+} from "./data/contacts";
 import { CompanyTable } from "./components/CompanyTable";
 import type { LogEntry } from "./components/LogForm";
 import "./App.css";
@@ -173,6 +179,63 @@ function App() {
     }
   }
 
+  // D-08 (Plan 03-04): contact management. Each handler calls the contacts data
+  // layer then loadFirma(firmaId) to refresh contactsByFirma so the detail panel
+  // AND the row's Ansprechpartner/Tel/Mail/in (Plan 01) reflect the change. App
+  // owns every data-layer call; CompanyDetail owns edit state only (DATA-02).
+  async function handleAddContact(
+    firmaId: string,
+    input: {
+      name?: string;
+      rolle?: string;
+      telefon?: string;
+      linkedin?: string;
+      emails?: string[];
+    },
+  ) {
+    try {
+      await addContact(firmaId, input);
+      await loadFirma(firmaId);
+    } catch (e) {
+      console.error("Failed to add contact:", e);
+    }
+  }
+
+  async function handleUpdateContact(
+    firmaId: string,
+    kontaktId: string,
+    patch: Partial<Record<"name" | "rolle" | "telefon" | "linkedin", string>>,
+  ) {
+    try {
+      await updateContact(kontaktId, patch);
+      await loadFirma(firmaId);
+    } catch (e) {
+      console.error("Failed to update contact:", e);
+    }
+  }
+
+  async function handleDeleteContact(firmaId: string, kontaktId: string) {
+    try {
+      await deleteContact(kontaktId);
+      await loadFirma(firmaId);
+    } catch (e) {
+      console.error("Failed to delete contact:", e);
+    }
+  }
+
+  async function handleSetContactEmails(
+    firmaId: string,
+    kontaktId: string,
+    emails: string[],
+  ) {
+    try {
+      await setContactEmails(kontaktId, emails);
+      await loadFirma(firmaId);
+    } catch (e) {
+      console.error("Failed to set contact emails:", e);
+    }
+  }
+
   // D-07: commit an inline edit of a company text field, then reload so the row
   // reflects the persisted value.
   async function handleEditCell(
@@ -240,6 +303,10 @@ function App() {
             onDeleteCompany={handleDeleteCompany}
             onRestoreCompany={handleRestoreCompany}
             onPermanentDelete={handlePermanentDelete}
+            onAddContact={handleAddContact}
+            onUpdateContact={handleUpdateContact}
+            onDeleteContact={handleDeleteContact}
+            onSetContactEmails={handleSetContactEmails}
           />
         )}
       </main>

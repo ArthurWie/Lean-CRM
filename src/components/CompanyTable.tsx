@@ -383,6 +383,30 @@ type Props = {
   onRestoreCompany?: (firmaId: string) => void;
   // Trash view: "Endgültig löschen" — permanent hard-delete (cascade).
   onPermanentDelete?: (firmaId: string) => void;
+  // D-08 (Plan 03-04): contact management in the detail panel. Threaded down to
+  // CompanyDetail the same way onSave is, binding firmaId = c.id. App calls the
+  // contacts data layer then reloads contactsByFirma.
+  onAddContact?: (
+    firmaId: string,
+    input: {
+      name?: string;
+      rolle?: string;
+      telefon?: string;
+      linkedin?: string;
+      emails?: string[];
+    },
+  ) => void;
+  onUpdateContact?: (
+    firmaId: string,
+    kontaktId: string,
+    patch: Partial<Record<"name" | "rolle" | "telefon" | "linkedin", string>>,
+  ) => void;
+  onDeleteContact?: (firmaId: string, kontaktId: string) => void;
+  onSetContactEmails?: (
+    firmaId: string,
+    kontaktId: string,
+    emails: string[],
+  ) => void;
   // Test-only seam: lets a test render with dead rows already visible.
   showDeadInitially?: boolean;
   // Test-only seam: lets a test render the "Zuletzt gelöscht" trash view directly.
@@ -402,6 +426,10 @@ export function CompanyTable({
   onDeleteCompany,
   onRestoreCompany,
   onPermanentDelete,
+  onAddContact,
+  onUpdateContact,
+  onDeleteContact,
+  onSetContactEmails,
   showDeadInitially = false,
   trashViewInitially = false,
 }: Props) {
@@ -872,6 +900,28 @@ export function CompanyTable({
                                   setExpandedId(null);
                                   onDeleteCompany(c.id);
                                 }
+                              : undefined
+                          }
+                          onAddContact={
+                            onAddContact
+                              ? (input) => onAddContact(c.id, input)
+                              : undefined
+                          }
+                          onUpdateContact={
+                            onUpdateContact
+                              ? (kontaktId, patch) =>
+                                  onUpdateContact(c.id, kontaktId, patch)
+                              : undefined
+                          }
+                          onDeleteContact={
+                            onDeleteContact
+                              ? (kontaktId) => onDeleteContact(c.id, kontaktId)
+                              : undefined
+                          }
+                          onSetContactEmails={
+                            onSetContactEmails
+                              ? (kontaktId, emails) =>
+                                  onSetContactEmails(c.id, kontaktId, emails)
                               : undefined
                           }
                         />
