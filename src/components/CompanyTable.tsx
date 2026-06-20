@@ -386,6 +386,42 @@ export function CompanyTable({
   // DB-07/D-05: the in-progress "+ Neue Firma" draft, or null when not adding.
   // Held outside the sorted list and pinned at the top of the tbody until saved.
   const [addDraft, setAddDraft] = useState<AddDraft | null>(null);
+  // Addition 3: the right-click context menu. A single state slot guarantees only
+  // one menu is open at a time. `firmaId` is the row to delete, `x`/`y` are the
+  // cursor coordinates for fixed positioning, `confirming` flips the menu from the
+  // single "Löschen" item to the two-step "Ja, löschen / Abbrechen" confirm.
+  const [contextMenu, setContextMenu] = useState<{
+    firmaId: string;
+    x: number;
+    y: number;
+    confirming: boolean;
+  } | null>(null);
+
+  // Open the menu at the cursor for a real (saved) company row. Suppresses the
+  // native WebView2/browser context menu so only our custom menu shows. Right-
+  // clicking another row just replaces the state → the menu moves, never stacks.
+  function openContextMenu(e: ReactMouseEvent, firmaId: string) {
+    e.preventDefault();
+    setContextMenu({ firmaId, x: e.clientX, y: e.clientY, confirming: false });
+  }
+
+  // Close on Escape, on any outside mousedown, or on a right-click elsewhere
+  // (the document-level contextmenu also re-fires for row right-clicks, but the
+  // row handler's setState runs after and re-opens at the new spot). The menu's
+  // own clicks stopPropagation so they never reach these document listeners.
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = () => setContextMenu(null);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [contextMenu]);
 
   // Build the data-layer input from the draft, dropping empty optional fields.
   function saveAddDraft() {
@@ -591,6 +627,7 @@ export function CompanyTable({
                   <tr
                     className={dead ? "r-main row-dead" : "r-main"}
                     onClick={() => toggleRow(c.id)}
+                    onContextMenu={(e) => openContextMenu(e, c.id)}
                   >
                     <NameCell
                       name={c.name}
@@ -738,6 +775,63 @@ export function CompanyTable({
           </tbody>
         </table>
       </div>
+
+      {/* Addition 3: the right-click context menu. Fixed-positioned at the cursor.
+          Corporate look (sharp 2px corners, muted navy, thin line, text items). Its
+          own mousedown/click stopPropagation so document listeners don't close it
+          before the action fires. Mirrors the detail-panel confirm classes so the
+          two delete entry points share one look. */}
+      {contextMenu && (
+        <div
+          role="menu"
+          className="ctxmenu"
+          style={{
+            position: "fixed",
+            top: contextMenu.y,
+            left: contextMenu.x,
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          {contextMenu.confirming ? (
+            <span className="confirm-del">
+              Wirklich löschen?{" "}
+              <button
+                type="button"
+                className="del-yes"
+                onClick={() => {
+                  const id = contextMenu.firmaId;
+                  setContextMenu(null);
+                  // If this company's detail panel is open, close it too — the row
+                  // vanishes after the parent refresh removes the company.
+                  setExpandedId((cur) => (cur === id ? null : cur));
+                  onDeleteCompany?.(id);
+                }}
+              >
+                Ja, löschen
+              </button>
+              <button
+                type="button"
+                className="del-cancel"
+                onClick={() => setContextMenu(null)}
+              >
+                Abbrechen
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              className="ctx-item del-trigger"
+              onClick={() =>
+                setContextMenu((m) => (m ? { ...m, confirming: true } : m))
+              }
+            >
+              Löschen
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="hint">
         Die HEISS-Markierung wird beim Loggen gesetzt und sortiert die Firma nach oben.

@@ -326,6 +326,72 @@ td.editable {
   color: var(--hot);
 }
 
+/* Right-click context menu (Addition 3). Corporate/Excel look: sharp 2px corners,
+   muted-navy ink, thin line border, text-only items. The confirm step reuses the
+   SAME classes as the detail-panel danger zone (del-trigger/del-yes/del-cancel/
+   confirm-del) so both delete entry points read identically — we resolve the
+   red-vs-navy question globally later. */
+.ctxmenu {
+  z-index: 50;
+  min-width: 132px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 2px; /* sharp corners (corporate look) */
+  box-shadow: 0 6px 20px rgba(20, 20, 40, 0.14);
+  padding: 4px;
+}
+.ctxmenu .ctx-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--soft);
+  cursor: pointer;
+}
+.ctxmenu .ctx-item:hover {
+  background: var(--line2);
+  color: var(--ink);
+}
+.ctxmenu .confirm-del {
+  font-size: 12px;
+  color: var(--soft);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  white-space: nowrap;
+}
+.ctxmenu .del-yes,
+.ctxmenu .del-cancel {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 2px; /* sharp corners (corporate look) */
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--soft);
+  cursor: pointer;
+}
+.ctxmenu .del-yes {
+  color: #b3261e; /* muted danger — matches detail-panel confirm */
+  border-color: #e3b4b0;
+  background: #fcf3f2;
+}
+.ctxmenu .del-yes:hover {
+  background: #f8e7e5;
+}
+.ctxmenu .del-cancel:hover {
+  color: var(--ink);
+  border-color: var(--faint);
+}
+
 /* Empty states (Copywriting Contract) */
 .empty {
   padding: 28px 16px;
