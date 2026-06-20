@@ -67,6 +67,61 @@ export async function setManualStatus(
     .where(eq(firmen.id, firmaId));
 }
 
+// DB-07 / D-05 / D-06: manually add a company via "+ Neue Firma". The new firma
+// gets Status "Neu" — the no-interaction deriveStatus default (hand-set here; this
+// path never routes through derive.ts since there are no interactions yet) — heiss
+// false, a UUID id, and matching UTC-ISO created_at/updated_at. Unternehmen (name)
+// is the only required field (D-06): it is trimmed and an empty/whitespace-only
+// name is rejected so no nameless "—" company is ever created (Pitfall 5 / T-03-VAL).
+// No dedupe runs on manual add this phase (D-09; FN→domain→name dedupe lands with
+// CSV import in Phase 5). Returns the new firma id.
+export async function addCompany(input: {
+  name: string;
+  fn?: string;
+  branche?: string;
+  groesse?: string;
+  website?: string;
+}): Promise<string> {
+  const name = input.name.trim();
+  if (!name) {
+    throw new Error("Unternehmen darf nicht leer sein.");
+  }
+
+  const id = crypto.randomUUID();
+  const ts = new Date().toISOString();
+
+  await db.insert(firmen).values({
+    id,
+    name,
+    fn: input.fn ?? null,
+    branche: input.branche ?? null,
+    groesse: input.groesse ?? null,
+    website: input.website ?? null,
+    status: "Neu", // matches deriveStatus([]) — never taken from user input (T-03-STATUS)
+    heiss: false,
+    created_at: ts,
+    updated_at: ts,
+  });
+
+  return id;
+}
+
+// D-07: patch the inline-editable company text fields (Unternehmen, FN, Branche,
+// Größe, Website, Lessons) on a single firma and bump updated_at. Mirrors
+// setManualStatus' parameterized update shape — all writes stay in this data layer
+// (DATA-02) and Drizzle parameterizes them (T-03-SQLI). Status is NOT editable here.
+export async function updateCompanyField(
+  id: string,
+  patch: Partial<
+    Pick<Company, "name" | "fn" | "branche" | "groesse" | "website" | "lessons">
+  >,
+): Promise<void> {
+  await db
+    .update(firmen)
+    .set({ ...patch, updated_at: new Date().toISOString() })
+    .where(eq(firmen.id, id));
+}
+
 export async function seedIfEmpty(): Promise<void> {
   const existing = await db.select().from(firmen).limit(1);
   if (existing.length) return; // idempotent: only seed an empty DB
