@@ -51,8 +51,16 @@ describe("ImportDialog", () => {
       );
       expect(screen.getByText("Import-Vorschau")).toBeTruthy();
       // Preview summary: X neu, Y Duplikate, Z nicht-kontaktieren, N fehlerhaft.
+      // The counts are bold (<strong>) per the spec, so the text spans multiple
+      // nodes — match against the element's normalized textContent.
       expect(
-        screen.getByText(/2 neu, 1 Duplikate, 1 nicht-kontaktieren, 1 fehlerhaft/),
+        screen.getByText(
+          (_t, el) =>
+            el?.tagName === "P" &&
+            /^2 neu, 1 Duplikate, 1 nicht-kontaktieren, 1 fehlerhaft$/.test(
+              el.textContent?.replace(/\s+/g, " ").trim() ?? "",
+            ),
+        ),
       ).toBeTruthy();
     });
 

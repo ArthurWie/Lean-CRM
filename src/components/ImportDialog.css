@@ -1,0 +1,160 @@
+/* ImportDialog.css — the NEW modal/dialog primitive (UI-SPEC §"Modal/dialog
+   primitive"), shared by the import preview, report, and wrong-file error. The
+   app had no dialog before this phase; this is the minimal on-system surface.
+   Tokens are reused from CompanyTable.css :root — no new palette, no new spacing
+   beyond the values the spec already names. Buttons reuse the global .addbtn /
+   .cancel / .empty-b / .state-error classes; only the shell + group list is new. */
+
+.imp-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* derived from the existing rgba(20,20,40,…) shadow family — not a new black */
+  background: rgba(20, 20, 40, 0.28);
+  padding: 24px;
+}
+
+.imp-card {
+  background: var(--surface);
+  border: 1px solid #ececf1;
+  border-radius: 12px; /* peer of the table card (14px) / inner buttons (8px) */
+  box-shadow: 0 6px 20px rgba(20, 20, 40, 0.14); /* reuse the .ctxmenu shadow */
+  max-width: 560px;
+  width: 100%;
+  padding: 22px 26px; /* matches .main padding */
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.imp-title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.3px; /* mirrors .head h1 */
+  color: var(--ink);
+}
+
+.imp-summary {
+  font-size: 13.5px;
+  color: var(--ink);
+}
+.imp-summary strong {
+  font-weight: 600;
+}
+.imp-summary-error {
+  color: var(--hot);
+  font-weight: 600;
+  font-size: 12.5px;
+}
+
+/* Scrollable itemized body (UI-SPEC: max-height 50vh, overflow auto). */
+.imp-body {
+  max-height: 50vh;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.imp-group-h {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+.imp-group-count {
+  color: var(--soft);
+  font-weight: 600;
+}
+
+.imp-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.imp-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 4px 0;
+  border-top: 1px solid var(--line2);
+  font-size: 12.5px;
+}
+.imp-name {
+  color: var(--ink);
+  min-width: 0;
+}
+.imp-reason {
+  color: var(--soft);
+  font-size: 11.5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Duplikate are neutral (--soft); no special block treatment. */
+.imp-group[data-testid="group-duplikat"] .imp-name {
+  color: var(--soft);
+}
+
+/* Nicht kontaktieren — the LOUD Tot-only callout (D-04): --hot on --hot-soft, a
+   bold sub-heading; text carries the alarm (no icon/emoji, UI-02). */
+.imp-group-hot {
+  background: var(--hot-soft);
+  border: 1px solid #f0c9c9;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.imp-group-hot .imp-group-h {
+  color: var(--hot);
+  font-weight: 700;
+}
+.imp-group-hot .imp-item {
+  border-top-color: #f3cfcc;
+}
+.imp-group-hot .imp-name,
+.imp-group-hot .imp-reason {
+  color: var(--hot);
+}
+
+/* Fehlerhaft — established .state-error pairing (text/border/bg). */
+.imp-group-error {
+  background: #fdecec;
+  border: 1px solid #f0c9c9;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.imp-group-error .imp-group-h,
+.imp-group-error .imp-name,
+.imp-group-error .imp-reason {
+  color: var(--hot);
+}
+.imp-group-error .imp-item {
+  border-top-color: #f3cfcc;
+}
+
+.imp-empty {
+  font-size: 12.5px;
+  color: var(--faint);
+}
+
+.imp-error-body {
+  /* .state-error provides border/bg/radius/padding; nothing extra needed */
+}
+
+/* Footer — right-aligned action row mirroring .addrow-actions. */
+.imp-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.imp-confirm:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
