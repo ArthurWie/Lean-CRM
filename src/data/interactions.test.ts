@@ -51,8 +51,13 @@ vi.mock("@tauri-apps/plugin-sql", () => {
 });
 
 // Import AFTER the mock is registered.
-const { logInteraction, listInteractions, editInteraction, deleteInteraction } =
-  await import("./interactions");
+const {
+  logInteraction,
+  listInteractions,
+  editInteraction,
+  deleteInteraction,
+  updateInteractionNote,
+} = await import("./interactions");
 const { db } = await import("../db/client");
 const { firmen, interaktionen, followups } = await import("../db/schema");
 const { eq } = await import("drizzle-orm");
@@ -198,6 +203,39 @@ describe("interactions data layer", () => {
       .from(interaktionen)
       .where(eq(interaktionen.firma_id, firmaId));
     expect(rows).toHaveLength(1);
+  });
+
+  it("updateInteractionNote rewrites only the target interaction's notiz, leaving outcome/kanal (and thus status) intact", async () => {
+    const firmaId = await seedFirma();
+    await logInteraction({
+      firma_id: firmaId,
+      kanal: "Telefon",
+      outcome: "Gesprochen", // → Im Gespräch
+      notiz: "Alte Notiz.",
+    });
+    const [row] = await db
+      .select()
+      .from(interaktionen)
+      .where(eq(interaktionen.firma_id, firmaId));
+    expect((await getFirma(firmaId)).status).toBe("Im Gespräch");
+
+    await updateInteractionNote(row.id, "Neue Notiz.");
+
+    const after = await db
+      .select()
+      .from(interaktionen)
+      .where(eq(interaktionen.id, row.id));
+    expect(after[0].notiz).toBe("Neue Notiz.");
+    // outcome/kanal untouched → derived status unchanged
+    expect(after[0].outcome).toBe("Gesprochen");
+    expect(after[0].kanal).toBe("Telefon");
+    expect((await getFirma(firmaId)).status).toBe("Im Gespräch");
+  });
+
+  it("updateInteractionNote on a missing id is a no-op (does not throw)", async () => {
+    await expect(
+      updateInteractionNote(crypto.randomUUID(), "x"),
+    ).resolves.toBeUndefined();
   });
 
   it("listInteractions returns only the target firma's interactions", async () => {
