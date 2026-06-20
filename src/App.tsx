@@ -30,7 +30,13 @@ import {
   deleteContact,
   setContactEmails,
 } from "./data/contacts";
+import {
+  getFocusSnapshot,
+  resolveDueFollowups,
+  type FocusCompany,
+} from "./data/focus";
 import { CompanyTable } from "./components/CompanyTable";
+import { FocusView } from "./components/FocusView";
 import type { LogEntry } from "./components/LogForm";
 import "./App.css";
 
@@ -46,6 +52,10 @@ function App() {
   >({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Focus mode (Plan 04-03). focusSnapshot is the one-time ordered call stream
+  // (getFocusSnapshot, read ONCE on open — D-07, never re-queried mid-session).
+  const [focusOpen, setFocusOpen] = useState(false);
+  const [focusSnapshot, setFocusSnapshot] = useState<FocusCompany[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -112,6 +122,73 @@ function App() {
     } catch (e) {
       console.error("Failed to save interaction:", e);
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Focus mode (Plan 04-03). The toolbar "Fokus" button (D-11) opens FocusView
+  // over a ONE-TIME snapshot. App owns every data-layer call (DATA-02): it imports
+  // ./data/focus, never drizzle. The save path is two SEQUENTIAL awaited writes
+  // (logInteraction THEN resolveDueFollowups) with NO combined/proxy transaction (D-04 /
+  // Pitfall 4 — the sqlite-proxy pool landmine). Skip never resolves (D-05).
+  // ---------------------------------------------------------------------------
+
+  // Open Focus: read getFocusSnapshot() ONCE and store it (D-07 — never re-query
+  // mid-session). Eagerly load contacts + interactions for the WHOLE snapshot
+  // (wiring choice (a)): the snapshot is a curated subset (due/hot/neu), not the
+  // whole DB, so the cost is bounded — and because FocusView owns the cursor, the
+  // parent has no next-served-id hook (no onAdvance prop), so eager loading is the
+  // clean way to guarantee the served company's Tel/Mail/in + Letzte Notizen are
+  // populated on first view (Pitfall 6). Never sets firmen.status (DATA-05).
+  async function handleOpenFocus() {
+    try {
+      const snapshot = await getFocusSnapshot();
+      setFocusSnapshot(snapshot);
+      // Eager per-firma load over the bounded snapshot so every served company's
+      // contacts/notes are ready (no empty panel on advance — Pitfall 6).
+      await Promise.all(snapshot.map((c) => loadFirma(c.id)));
+      setFocusOpen(true);
+    } catch (e) {
+      console.error("Failed to open Focus mode:", e);
+      setError("Fokus-Modus konnte nicht geöffnet werden.");
+    }
+  }
+
+  // "Speichern & weiter": SEQUENTIAL awaited writes, NO transaction (mirrors
+  // handleSave). Order matters (Pitfall 4): logInteraction inserts the NEW future-
+  // dated follow-up FIRST, then resolveDueFollowups closes only the OLD due ones —
+  // so the freshly-set follow-up survives and the resurfacing one stops. FocusView
+  // advances its own cursor after this resolves. Refresh the table so derived
+  // columns reflect the log once Focus closes.
+  async function handleFocusSave(firmaId: string, entry: LogEntry) {
+    try {
+      await logInteraction({
+        firma_id: firmaId,
+        kanal: entry.kanal,
+        outcome: entry.outcome,
+        notiz: entry.notiz,
+        heiss: entry.heiss,
+        followup: entry.followup ?? undefined,
+      });
+      await resolveDueFollowups(firmaId);
+      setCompanies(await listCompanies());
+    } catch (e) {
+      console.error("Failed to save Focus interaction:", e);
+    }
+  }
+
+  // "Überspringen": skip never resolves the follow-up (D-05) — the company stays
+  // due so it resurfaces next session. No data write here; FocusView advances its
+  // own cursor (skip-counts-once, 04-02).
+  function handleFocusSkip(_firmaId: string) {
+    // Intentionally a no-op on the data layer (D-05). The contacts/interactions
+    // for every snapshot company were eagerly loaded on open, so nothing to fetch.
+  }
+
+  // Close Focus: refresh BOTH lists so the table's derived columns (status /
+  // Notizen / Nächster Schritt) reflect the logs made in Focus mode.
+  async function handleCloseFocus() {
+    setFocusOpen(false);
+    await refreshLists();
   }
 
   // DB-07 / D-05: manual add via "+ Neue Firma". Persist the new company (Status
@@ -258,10 +335,18 @@ function App() {
         <div className="brand">
           <span className="dot" /> ClickWise
         </div>
-        <button className="nav active" type="button">
+        <button
+          className={focusOpen ? "nav" : "nav active"}
+          type="button"
+          onClick={handleCloseFocus}
+        >
           Datenbank
         </button>
-        <button className="nav" type="button">
+        <button
+          className={focusOpen ? "nav active" : "nav"}
+          type="button"
+          onClick={handleOpenFocus}
+        >
           Fokus
         </button>
         <div className="nav-foot">
@@ -274,7 +359,7 @@ function App() {
       <main className="main">
         <div className="head">
           <div>
-            <h1>Datenbank</h1>
+            <h1>{focusOpen ? "Fokus" : "Datenbank"}</h1>
           </div>
           <div className="sub">{companies.length} Firmen</div>
         </div>
@@ -289,6 +374,15 @@ function App() {
           </div>
         ) : loading ? (
           <div className="state-loading">Lädt…</div>
+        ) : focusOpen ? (
+          <FocusView
+            snapshot={focusSnapshot}
+            contactsByFirma={contactsByFirma}
+            interactionsByFirma={interactionsByFirma}
+            onSaveAndNext={handleFocusSave}
+            onSkip={handleFocusSkip}
+            onClose={handleCloseFocus}
+          />
         ) : (
           <CompanyTable
             companies={companies}
@@ -307,6 +401,7 @@ function App() {
             onUpdateContact={handleUpdateContact}
             onDeleteContact={handleDeleteContact}
             onSetContactEmails={handleSetContactEmails}
+            onOpenFocus={handleOpenFocus}
           />
         )}
       </main>
