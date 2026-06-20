@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { FocusView } from "./FocusView";
 import type { FocusCompany } from "../data/focus";
 import type { Contact } from "../data/companies";
@@ -221,7 +221,7 @@ describe("FocusView actions", () => {
 });
 
 describe("FocusView log", () => {
-  it("mounts LogForm and routes a save to onSaveAndNext(currentFirmaId, entry)", () => {
+  it("mounts LogForm and routes a save to onSaveAndNext(currentFirmaId, entry)", async () => {
     const onSaveAndNext = vi.fn();
     render(
       <FocusView
@@ -235,9 +235,12 @@ describe("FocusView log", () => {
     );
     // LogForm is mounted (its Telefon channel button is present).
     expect(screen.getByRole("button", { name: "Telefon" })).toBeTruthy();
-    // Pick an outcome so Speichern enables, then save.
+    // Pick an outcome so Speichern enables, then save (act() flushes the
+    // post-await advance so no unwrapped-state-update warning fires).
     fireEvent.click(screen.getByRole("button", { name: "Gesprochen" }));
-    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+    });
     expect(onSaveAndNext).toHaveBeenCalledTimes(1);
     expect(onSaveAndNext.mock.calls[0][0]).toBe("f1");
     expect(onSaveAndNext.mock.calls[0][1]).toMatchObject({ kanal: "Telefon", outcome: "Gesprochen" });
@@ -256,10 +259,15 @@ function counterText(): string | null {
   return document.querySelector(".focus-counter")?.textContent ?? null;
 }
 
-function logCurrent() {
-  // Drive the mounted LogForm to a saveable state and click Speichern.
+async function logCurrent() {
+  // Drive the mounted LogForm to a saveable state and click Speichern. The
+  // component advances AFTER awaiting onSaveAndNext, so flush microtasks via
+  // act() so the post-await state update (calledIds/index) is applied before
+  // the test asserts on the rendered card.
   fireEvent.click(screen.getByRole("button", { name: "Gesprochen" }));
-  fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+  });
 }
 
 describe("FocusView counter", () => {
@@ -295,7 +303,7 @@ describe("FocusView counter", () => {
     expect(counterText()).toBe("Firma 1 von 3");
   });
 
-  it("increments X by distinct finished companies (calledCount + current)", () => {
+  it("increments X by distinct finished companies (calledCount + current)", async () => {
     const snapshot = [
       company({ id: "a", name: "Alpha", reason: "neu" }),
       company({ id: "b", name: "Beta", reason: "neu" }),
@@ -311,7 +319,7 @@ describe("FocusView counter", () => {
       />,
     );
     expect(counterText()).toBe("Firma 1 von 2");
-    logCurrent(); // finish Alpha -> advance to Beta, now 2nd
+    await logCurrent(); // finish Alpha -> advance to Beta, now 2nd
     expect(currentName()).toBe("Beta");
     expect(counterText()).toBe("Firma 2 von 2");
   });
@@ -345,7 +353,7 @@ describe("FocusView skip", () => {
 });
 
 describe("FocusView save advances", () => {
-  it("calls onSaveAndNext then advances to the next un-called company", () => {
+  it("calls onSaveAndNext then advances to the next un-called company", async () => {
     const onSaveAndNext = vi.fn();
     const snapshot = [
       company({ id: "a", name: "Alpha", reason: "neu" }),
@@ -362,14 +370,14 @@ describe("FocusView save advances", () => {
       />,
     );
     expect(currentName()).toBe("Alpha");
-    logCurrent();
+    await logCurrent();
     expect(onSaveAndNext).toHaveBeenCalledWith("a", expect.objectContaining({ outcome: "Gesprochen" }));
     expect(currentName()).toBe("Beta");
   });
 });
 
 describe("FocusView completion", () => {
-  it("shows '{called} angerufen, {skipped} übersprungen' + Zurück zur Tabelle calling onClose", () => {
+  it("shows '{called} angerufen, {skipped} übersprungen' + Zurück zur Tabelle calling onClose", async () => {
     const onClose = vi.fn();
     const snapshot = [
       company({ id: "a", name: "Alpha", reason: "neu" }),
@@ -385,9 +393,9 @@ describe("FocusView completion", () => {
         onClose={onClose}
       />,
     );
-    logCurrent(); // finish Alpha
+    await logCurrent(); // finish Alpha
     expect(currentName()).toBe("Beta");
-    logCurrent(); // finish Beta -> no un-called remains -> completion
+    await logCurrent(); // finish Beta -> no un-called remains -> completion
     expect(screen.getByText("2 angerufen, 0 übersprungen")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Zurück zur Tabelle" }));
     expect(onClose).toHaveBeenCalledTimes(1);

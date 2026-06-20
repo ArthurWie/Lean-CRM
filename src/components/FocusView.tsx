@@ -16,6 +16,7 @@
 // inner-HTML escape hatch (T-04-06; the absence-grep gate asserts this). Tel/Mail/
 // in route through the sanitizing contactActions, never an inline opener
 // (T-04-05/07).
+import { useState } from "react";
 import type { FocusCompany } from "../data/focus";
 import type { Contact } from "../data/companies";
 import type { Interaction } from "../data/interactions";
@@ -42,7 +43,7 @@ type Props = {
   // Überspringen: FocusView re-queues to the end (D-08). The parent may use this
   // to lazy-load the next company's details.
   onSkip: (firmaId: string) => void;
-  // Zurück zur Tabelle.
+  // Zurück zur Tabelle — fired from the empty-start and completion screens.
   onClose: () => void;
 };
 
@@ -72,13 +73,88 @@ export function FocusView({
   interactionsByFirma,
   onSaveAndNext,
   onSkip,
+  onClose,
 }: Props) {
-  // The current company is snapshot[0] for Task 1; the in-memory cursor (Task 2)
-  // replaces this with a working queue + index.
-  const company = snapshot[0];
+  // -------------------------------------------------------------------------
+  // In-memory cursor (D-07/D-08/D-09, FOCUS-05/06). No analog file — pure
+  // useState. The COUNTER FORMULA (the one bit RESEARCH flagged ambiguous,
+  // Open Question 1):
+  //
+  //   Y (denominator, "von Y")     = snapshot.length          — FIXED for the
+  //                                  whole session; a re-queued skip never grows
+  //                                  it (D-07 / Pitfall 5).
+  //   X (numerator,   "Firma X")   = calledIds.size + 1        — distinct
+  //                                  companies already finished via Speichern &
+  //                                  weiter, plus the one currently shown; capped
+  //                                  at Y so it never reads "Firma 4 von 3".
+  //
+  // `queue` is the working order (init = snapshot). Überspringen moves the
+  // current company to the END of the queue (still in the queue, still un-called,
+  // still counted in Y) — so a skip-only session never auto-completes; the user
+  // keeps cycling skipped companies until they call them or press Zurück (D-08).
+  // Speichern & weiter adds the company to `calledIds` (removed from rotation).
+  // Completion fires only when NO un-called company remains.
+  // -------------------------------------------------------------------------
+  const [queue, setQueue] = useState<FocusCompany[]>(snapshot);
+  const [index, setIndex] = useState(0);
+  const [calledIds, setCalledIds] = useState<Set<string>>(() => new Set());
 
-  // Empty-start guard placeholder (filled in Task 2). For Task 1 we always have a
-  // company in the fixtures.
+  const total = snapshot.length; // Y — fixed.
+
+  // Empty at start (D-10): the snapshot is empty -> "Nichts zu tun", never a card.
+  if (total === 0) {
+    return (
+      <div className="focus-page">
+        <div className="focus-card">
+          <div className="focus-end">
+            <h2>Nichts zu tun</h2>
+            <p>Keine fälligen Wiedervorlagen.</p>
+            <button type="button" className="focus-back" onClick={onClose}>
+              Zurück zur Tabelle
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Find the current un-called company starting at `index` (a called company can
+  // sit in the queue if it was skipped before being called — defensive skip).
+  const currentPos = (() => {
+    for (let i = index; i < queue.length; i++) {
+      if (!calledIds.has(queue[i].id)) return i;
+    }
+    return -1; // no un-called company remains -> completion
+  })();
+
+  // Completion (D-09): every company has been called. calledCount = finished;
+  // skippedCount = companies the session ended without ever calling (total minus
+  // called). At the natural completion screen skippedCount is 0 (completion
+  // requires no un-called remaining); the formula stays robust if a parent ever
+  // forces an early close.
+  if (currentPos === -1) {
+    const calledCount = calledIds.size;
+    const skippedCount = total - calledCount;
+    return (
+      <div className="focus-page">
+        <div className="focus-card">
+          <div className="focus-end">
+            <h2>
+              {calledCount} angerufen, {skippedCount} übersprungen
+            </h2>
+            <button type="button" className="focus-back" onClick={onClose}>
+              Zurück zur Tabelle
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const company = queue[currentPos];
+
+  // X = distinct finished + the one currently shown, capped at Y.
+  const counterX = Math.min(calledIds.size + 1, total);
 
   const primary = contactsByFirma[company.id]?.[0];
   const primaryEmail = primary?.emails[0];
@@ -88,9 +164,38 @@ export function FocusView({
     a.datum < b.datum ? 1 : a.datum > b.datum ? -1 : 0,
   );
 
+  function handleSkip() {
+    // Re-queue the current company to the END (D-08); advance past it. We rebuild
+    // the queue moving `company` last, then keep `index` at currentPos so the
+    // next un-called company (now occupying this slot) is served.
+    onSkip(company.id);
+    setQueue((q) => {
+      const rest = q.filter((_, i) => i !== currentPos);
+      return [...rest, company];
+    });
+    // After removal, the next company shifts into currentPos; keep index there.
+    setIndex(currentPos);
+  }
+
+  async function handleSave(entry: LogEntry) {
+    await onSaveAndNext(company.id, entry);
+    setCalledIds((prev) => {
+      const next = new Set(prev);
+      next.add(company.id);
+      return next;
+    });
+    // Advance to the next un-called company from the current position. The render
+    // pass recomputes currentPos from `index` + the updated calledIds.
+    setIndex(currentPos + 1);
+  }
+
   return (
     <div className="focus-page">
       <div className="focus-card">
+        <div className="focus-counter">
+          Firma {counterX} von {total}
+        </div>
+
         <div className="focus-head">
           <div className="focus-name">
             {company.name}
@@ -154,10 +259,10 @@ export function FocusView({
           </button>
         </div>
 
-        <LogForm onSave={(entry) => onSaveAndNext(company.id, entry)} />
+        <LogForm onSave={handleSave} />
 
         <div className="focus-foot">
-          <button type="button" className="act-skip" onClick={() => onSkip(company.id)}>
+          <button type="button" className="act-skip" onClick={handleSkip}>
             Überspringen
           </button>
         </div>
