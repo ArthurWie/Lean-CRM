@@ -271,7 +271,7 @@ async function logCurrent() {
 }
 
 describe("FocusView counter", () => {
-  it("shows 'Firma 1 von Y' with Y = snapshot length, stable after a skip+return (no Firma N>M)", () => {
+  it("shows 'Firma X von Y' with Y = snapshot length fixed; skip advances and counts toward X (skip-counts-once)", () => {
     const snapshot = [
       company({ id: "a", name: "Alpha", reason: "neu" }),
       company({ id: "b", name: "Beta", reason: "neu" }),
@@ -290,20 +290,19 @@ describe("FocusView counter", () => {
     expect(counterText()).toBe("Firma 1 von 3");
     expect(currentName()).toBe("Alpha");
 
-    // Skip Alpha — it re-queues to the end; Beta is served, still "von 3".
+    // Skip Alpha — it is recorded skipped (NOT re-queued) and counts once toward
+    // X; Beta is served as "Firma 2 von 3".
     fireEvent.click(screen.getByRole("button", { name: "Überspringen" }));
     expect(currentName()).toBe("Beta");
-    expect(counterText()).toBe("Firma 1 von 3");
+    expect(counterText()).toBe("Firma 2 von 3");
 
-    // Skip Beta, skip Gamma -> Alpha returns; Y still 3 (never "von 4/5/6").
+    // Skip Beta -> Gamma is "Firma 3 von 3"; Alpha never reappears this session.
     fireEvent.click(screen.getByRole("button", { name: "Überspringen" }));
     expect(currentName()).toBe("Gamma");
-    fireEvent.click(screen.getByRole("button", { name: "Überspringen" }));
-    expect(currentName()).toBe("Alpha");
-    expect(counterText()).toBe("Firma 1 von 3");
+    expect(counterText()).toBe("Firma 3 von 3");
   });
 
-  it("increments X by distinct finished companies (calledCount + current)", async () => {
+  it("increments X by finished + skipped companies (called/skipped + current)", async () => {
     const snapshot = [
       company({ id: "a", name: "Alpha", reason: "neu" }),
       company({ id: "b", name: "Beta", reason: "neu" }),
@@ -326,7 +325,7 @@ describe("FocusView counter", () => {
 });
 
 describe("FocusView skip", () => {
-  it("re-queues the skipped company to the end and calls onSkip(id)", () => {
+  it("advances to the next unseen company without re-queuing and calls onSkip(id)", () => {
     const onSkip = vi.fn();
     const snapshot = [
       company({ id: "a", name: "Alpha", reason: "neu" }),
@@ -345,10 +344,12 @@ describe("FocusView skip", () => {
     expect(currentName()).toBe("Alpha");
     fireEvent.click(screen.getByRole("button", { name: "Überspringen" }));
     expect(onSkip).toHaveBeenCalledWith("a");
-    // Beta now, Alpha re-appears after Beta.
+    // Beta now. Skipping Beta exhausts the snapshot — Alpha does NOT reappear
+    // this session (skip-counts-once); completion follows instead.
     expect(currentName()).toBe("Beta");
     fireEvent.click(screen.getByRole("button", { name: "Überspringen" }));
-    expect(currentName()).toBe("Alpha");
+    expect(currentName()).toBeNull(); // no card — completion screen
+    expect(screen.getByText("0 angerufen, 2 übersprungen")).toBeTruthy();
   });
 });
 
@@ -377,11 +378,12 @@ describe("FocusView save advances", () => {
 });
 
 describe("FocusView completion", () => {
-  it("shows '{called} angerufen, {skipped} übersprungen' + Zurück zur Tabelle calling onClose", async () => {
+  it("shows '{called} angerufen, {skipped} übersprungen' with both non-zero + Zurück zur Tabelle calling onClose", async () => {
     const onClose = vi.fn();
     const snapshot = [
       company({ id: "a", name: "Alpha", reason: "neu" }),
       company({ id: "b", name: "Beta", reason: "neu" }),
+      company({ id: "c", name: "Gamma", reason: "neu" }),
     ];
     render(
       <FocusView
@@ -393,10 +395,14 @@ describe("FocusView completion", () => {
         onClose={onClose}
       />,
     );
-    await logCurrent(); // finish Alpha
+    await logCurrent(); // call Alpha -> Beta
     expect(currentName()).toBe("Beta");
-    await logCurrent(); // finish Beta -> no un-called remains -> completion
-    expect(screen.getByText("2 angerufen, 0 übersprungen")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Überspringen" })); // skip Beta -> Gamma
+    expect(currentName()).toBe("Gamma");
+    await logCurrent(); // call Gamma -> no unseen remains -> completion
+    // 2 called (Alpha, Gamma), 1 skipped (Beta) — both meaningful under
+    // skip-counts-once.
+    expect(screen.getByText("2 angerufen, 1 übersprungen")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Zurück zur Tabelle" }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
