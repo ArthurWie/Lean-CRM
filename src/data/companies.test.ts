@@ -567,4 +567,23 @@ describe("companies data layer", () => {
       "firmen",
     ]);
   });
+
+  // D-08: in the real (non-DEV) build seedIfEmpty MUST be a no-op so a cleared DB
+  // stays empty on the next launch (the clear-all couple). The default vitest env
+  // has import.meta.env.DEV truthy, which is why all the seed tests above still
+  // seed; here we stub it false and assert the seed inserts nothing.
+  it("seed gate: seedIfEmpty is a no-op when import.meta.env.DEV is false (D-08)", async () => {
+    vi.stubEnv("DEV", false);
+    try {
+      executedSql.length = 0;
+      await seedIfEmpty(); // empty DB, but DEV is false → must do nothing
+
+      // No firmen insert reached the execute path from the seed.
+      expect(executedSql.some((s) => /insert into "firmen"/i.test(s))).toBe(false);
+      // And the DB is still empty.
+      expect(await listCompanies()).toHaveLength(0);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
 });
