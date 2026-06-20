@@ -698,6 +698,104 @@ describe("CompanyTable", () => {
     });
   });
 
+  // Addition 3: a RIGHT-CLICK context menu on a real company row offers Löschen →
+  // two-step confirm → onDeleteCompany. Second entry point to the same delete path
+  // (the detail-panel danger zone stays). Only saved rows; not the draft/empty rows.
+  describe("right-click context menu delete (Addition 3)", () => {
+    function tableWithRow(extra?: Partial<Parameters<typeof CompanyTable>[0]>) {
+      const onDeleteCompany = vi.fn();
+      render(
+        <CompanyTable
+          companies={[company({ id: "1", name: "Acme GmbH", status: "Offen" })]}
+          interactionsByFirma={{ "1": [] }}
+          onDeleteCompany={onDeleteCompany}
+          {...extra}
+        />,
+      );
+      return { onDeleteCompany };
+    }
+
+    // The data row carrying the company name (not the detail/add/action rows).
+    function dataRow(name: string) {
+      return screen.getByText(name).closest("tr") as HTMLElement;
+    }
+
+    it("right-clicking a real row opens a custom menu with a Löschen item and suppresses the native menu", () => {
+      tableWithRow();
+      expect(screen.queryByRole("menu")).toBeNull();
+      const evt = new MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        clientX: 120,
+        clientY: 80,
+      });
+      fireEvent(dataRow("Acme GmbH"), evt);
+      // Native menu suppressed.
+      expect(evt.defaultPrevented).toBe(true);
+      // Custom menu visible with Löschen.
+      const menu = screen.getByRole("menu");
+      expect(menu).toBeTruthy();
+      expect(within(menu).getByRole("button", { name: "Löschen" })).toBeTruthy();
+    });
+
+    it("Löschen → Ja, löschen calls onDeleteCompany with the row id and closes the menu", () => {
+      const { onDeleteCompany } = tableWithRow();
+      fireEvent.contextMenu(dataRow("Acme GmbH"));
+      fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+      // Transitions to the confirm step in the SAME menu.
+      fireEvent.click(screen.getByRole("button", { name: "Ja, löschen" }));
+      expect(onDeleteCompany).toHaveBeenCalledWith("1");
+      // Menu closed afterwards.
+      expect(screen.queryByRole("menu")).toBeNull();
+    });
+
+    it("Abbrechen in the confirm step closes the menu without deleting", () => {
+      const { onDeleteCompany } = tableWithRow();
+      fireEvent.contextMenu(dataRow("Acme GmbH"));
+      fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+      fireEvent.click(screen.getByRole("button", { name: "Abbrechen" }));
+      expect(onDeleteCompany).not.toHaveBeenCalled();
+      expect(screen.queryByRole("menu")).toBeNull();
+    });
+
+    it("pressing Escape closes the menu without deleting", () => {
+      const { onDeleteCompany } = tableWithRow();
+      fireEvent.contextMenu(dataRow("Acme GmbH"));
+      expect(screen.getByRole("menu")).toBeTruthy();
+      fireEvent.keyDown(document, { key: "Escape" });
+      expect(screen.queryByRole("menu")).toBeNull();
+      expect(onDeleteCompany).not.toHaveBeenCalled();
+    });
+
+    it("clicking outside the menu closes it without deleting", () => {
+      const { onDeleteCompany } = tableWithRow();
+      fireEvent.contextMenu(dataRow("Acme GmbH"));
+      expect(screen.getByRole("menu")).toBeTruthy();
+      fireEvent.mouseDown(document.body);
+      expect(screen.queryByRole("menu")).toBeNull();
+      expect(onDeleteCompany).not.toHaveBeenCalled();
+    });
+
+    it("right-clicking the inline-add draft row does NOT open the menu", () => {
+      tableWithRow();
+      fireEvent.click(screen.getByRole("button", { name: "+ Neue Firma" }));
+      const draftRow = screen
+        .getByPlaceholderText("Unternehmen")
+        .closest("tr") as HTMLElement;
+      fireEvent.contextMenu(draftRow);
+      expect(screen.queryByRole("menu")).toBeNull();
+    });
+
+    it("right-clicking an empty-state row does NOT open the menu", () => {
+      render(<CompanyTable companies={[]} onDeleteCompany={vi.fn()} />);
+      const emptyRow = screen
+        .getByText("Noch keine Firmen")
+        .closest("tr") as HTMLElement;
+      fireEvent.contextMenu(emptyRow);
+      expect(screen.queryByRole("menu")).toBeNull();
+    });
+  });
+
   it("renders 🔥 companies above non-🔥 companies, then alphabetical (DB-04, D-12)", () => {
     render(
       <CompanyTable
