@@ -267,4 +267,105 @@ describe("CompanyTable", () => {
     expect((newCell as HTMLElement).querySelector(".ndot")).toBeTruthy();
     expect((oldCell as HTMLElement).querySelector(".ndot")).toBeNull();
   });
+
+  describe("live search (DB-08, D-10/11)", () => {
+    function search() {
+      return screen.getByPlaceholderText("Suchen…");
+    }
+
+    it("the search input is enabled (not disabled) and starts empty", () => {
+      render(<CompanyTable companies={[company({ id: "1", name: "Acme GmbH", status: "Neu" })]} />);
+      const input = search() as HTMLInputElement;
+      expect(input).not.toBeDisabled();
+      expect(input.value).toBe("");
+    });
+
+    it("typing a query filters the rendered rows live (name match)", () => {
+      render(
+        <CompanyTable
+          companies={[
+            company({ id: "1", name: "Himmelhoch GmbH", status: "Offen" }),
+            company({ id: "2", name: "Chapter 4 GmbH", status: "Offen" }),
+          ]}
+        />,
+      );
+      expect(screen.queryByText("Chapter 4 GmbH")).toBeTruthy();
+      fireEvent.change(search(), { target: { value: "himmel" } });
+      expect(screen.queryByText("Himmelhoch GmbH")).toBeTruthy();
+      expect(screen.queryByText("Chapter 4 GmbH")).toBeNull();
+    });
+
+    it("search matches a contact name (D-10)", () => {
+      render(
+        <CompanyTable
+          companies={[
+            company({ id: "1", name: "Himmelhoch GmbH", status: "Offen" }),
+            company({ id: "2", name: "Chapter 4 GmbH", status: "Offen" }),
+          ]}
+          contactsByFirma={{ "2": [contact({ id: "k", firma_id: "2", name: "Max Müller" })] }}
+        />,
+      );
+      fireEvent.change(search(), { target: { value: "müller" } });
+      expect(screen.queryByText("Chapter 4 GmbH")).toBeTruthy();
+      expect(screen.queryByText("Himmelhoch GmbH")).toBeNull();
+    });
+
+    it("clearing the search box restores the full set", () => {
+      render(
+        <CompanyTable
+          companies={[
+            company({ id: "1", name: "Himmelhoch GmbH", status: "Offen" }),
+            company({ id: "2", name: "Chapter 4 GmbH", status: "Offen" }),
+          ]}
+        />,
+      );
+      fireEvent.change(search(), { target: { value: "himmel" } });
+      expect(screen.queryByText("Chapter 4 GmbH")).toBeNull();
+      fireEvent.change(search(), { target: { value: "" } });
+      expect(screen.queryByText("Chapter 4 GmbH")).toBeTruthy();
+    });
+
+    it("a no-match query shows the no-search-match empty state with the query (D-10)", () => {
+      render(
+        <CompanyTable companies={[company({ id: "1", name: "Himmelhoch GmbH", status: "Offen" })]} />,
+      );
+      fireEvent.change(search(), { target: { value: "zzz" } });
+      expect(screen.queryByText(/Keine Firma passt zu/)).toBeTruthy();
+      expect(screen.queryByText(/zzz/)).toBeTruthy();
+      expect(screen.queryByText("Himmelhoch GmbH")).toBeNull();
+    });
+
+    it("search stacks with the dead-row toggle (D-11)", () => {
+      render(
+        <CompanyTable
+          companies={[
+            company({ id: "1", name: "Alpha GmbH", status: "Offen" }),
+            company({ id: "2", name: "Alpha Tot GmbH", status: "Tot" }),
+          ]}
+        />,
+      );
+      fireEvent.change(search(), { target: { value: "alpha" } });
+      // Both names match the query, but the dead one stays hidden by the toggle.
+      expect(screen.queryByText("Alpha GmbH")).toBeTruthy();
+      expect(screen.queryByText("Alpha Tot GmbH")).toBeNull();
+      // Reveal dead rows → the dead match now appears too.
+      fireEvent.click(screen.getByRole("button", { name: "Tot/Geparkt" }));
+      expect(screen.queryByText("Alpha Tot GmbH")).toBeTruthy();
+    });
+  });
+
+  it("renders 🔥 companies above non-🔥 companies, then alphabetical (DB-04, D-12)", () => {
+    render(
+      <CompanyTable
+        companies={[
+          company({ id: "1", name: "Alpha GmbH", status: "Offen", heiss: false }),
+          company({ id: "2", name: "Zeta GmbH", status: "Offen", heiss: true }),
+        ]}
+      />,
+    );
+    const rows = screen.getAllByText(/GmbH$/).map((el) => el.textContent);
+    // Hot "Zeta" renders before non-hot "Alpha".
+    expect(rows[0]).toContain("Zeta GmbH");
+    expect(rows[1]).toContain("Alpha GmbH");
+  });
 });
