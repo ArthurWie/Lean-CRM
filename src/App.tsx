@@ -35,8 +35,18 @@ import {
   resolveDueFollowups,
   type FocusCompany,
 } from "./data/focus";
+import {
+  parseCsv,
+  validateHeader,
+  classifyRows,
+  importCsv,
+  clearAllData,
+  type ClassifiedRow,
+  type Candidate,
+} from "./data/import";
 import { CompanyTable } from "./components/CompanyTable";
 import { FocusView } from "./components/FocusView";
+import { ImportDialog, type ImportDialogMode } from "./components/ImportDialog";
 import type { LogEntry } from "./components/LogForm";
 import "./App.css";
 
@@ -56,6 +66,15 @@ function App() {
   // (getFocusSnapshot, read ONCE on open — D-07, never re-queried mid-session).
   const [focusOpen, setFocusOpen] = useState(false);
   const [focusSnapshot, setFocusSnapshot] = useState<FocusCompany[]>([]);
+  // CSV import (Plan 05-02). One state slot drives the shared ImportDialog: null =
+  // closed; otherwise { mode, rows }. "preview" → "report" reuses the SAME dialog
+  // (the rows stay; only the mode flips after the write). "error" = wrong file (5a).
+  const [importDialog, setImportDialog] = useState<{
+    mode: ImportDialogMode;
+    rows: ClassifiedRow[];
+  } | null>(null);
+  // D-08: the sidebar-footer "Alle Daten löschen" two-step inline confirm.
+  const [confirmClearAll, setConfirmClearAll] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -329,6 +348,78 @@ function App() {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // CSV import (Plan 05-02). The full flow lives here so the components stay SQL-
+  // free (DATA-02): handleImport reads the File, parses + validates + classifies,
+  // and opens the shared ImportDialog; handleConfirmImport writes only the neu rows
+  // then flips the dialog to the report. App owns every data-layer call.
+  // ---------------------------------------------------------------------------
+
+  // Upload → parse → header-validate → classify → preview (D-06). A wrong header
+  // opens the dialog in "error" mode and processes ZERO rows (T-05-HDR). Any read/
+  // parse failure surfaces as the same error dialog rather than a silent throw
+  // (T-05-FILE).
+  async function handleImport(file: File) {
+    try {
+      const text = await file.text();
+      const { data, meta } = parseCsv(text);
+      if (!validateHeader(meta.fields)) {
+        setImportDialog({ mode: "error", rows: [] });
+        return;
+      }
+      // Existing companies become dedupe candidates; their status drives the D-04
+      // Tot → nicht-kontaktieren split. listCompanies includes Tot/Geparkt (the
+      // status filter is UI-side), exactly what the classifier needs.
+      const existing: Candidate[] = (await listCompanies()).map((c) => ({
+        name: c.name,
+        status: c.status,
+        fn: c.fn ?? "",
+        website: c.website ?? "",
+      }));
+      const rows = classifyRows(data, existing);
+      setImportDialog({ mode: "preview", rows });
+    } catch (e) {
+      console.error("Failed to read/parse the CSV file:", e);
+      setImportDialog({ mode: "error", rows: [] });
+    }
+  }
+
+  // Bestätigen: write ONLY the neu rows (importCsv — sequential awaited inserts, NO
+  // transaction, Plan 01), refresh the table + per-firma maps, then flip the SAME
+  // dialog to "report" so the user sees the same itemization post-write (D-05).
+  async function handleConfirmImport(neuRows: Parameters<typeof importCsv>[0]) {
+    try {
+      await importCsv(neuRows);
+      await refreshLists();
+      // Drop stale per-firma maps so reopened rows reload fresh contacts/notes.
+      setInteractionsByFirma({});
+      setContactsByFirma({});
+      // Keep the classified rows; only the mode changes preview → report.
+      setImportDialog((d) => (d ? { mode: "report", rows: d.rows } : null));
+    } catch (e) {
+      console.error("Failed to import CSV rows:", e);
+      // A write failure shouldn't strand the user in the preview; surface the
+      // generic error dialog (T-05-FILE) so the flow is never silently swallowed.
+      setImportDialog({ mode: "error", rows: [] });
+    }
+  }
+
+  // D-08: "Alle Daten löschen" — hard-reset the DB behind the two-step confirm,
+  // then refresh so the table falls through to its existing empty state (5c).
+  async function handleClearAll() {
+    try {
+      await clearAllData();
+      setInteractionsByFirma({});
+      setContactsByFirma({});
+      await refreshLists();
+    } catch (e) {
+      console.error("Failed to clear all data:", e);
+      setError("Daten konnten nicht gelöscht werden.");
+    } finally {
+      setConfirmClearAll(false);
+    }
+  }
+
   return (
     <div className="app">
       <aside className="sidebar">
@@ -350,9 +441,44 @@ function App() {
           Fokus
         </button>
         <div className="nav-foot">
-          Lean v3
-          <br />
-          Tel/Mail/LinkedIn klickbar. Zeile anklicken zum Eintragen.
+          {/* D-08: the single most dangerous action, parked low-emphasis in the
+              sidebar footer (out of the main toolbar) behind the established
+              two-step inline confirm (del-trigger → del-yes/del-cancel, 2px
+              corners, #b3261e — the global classes from CompanyDetail.css). */}
+          <div className="clear-all">
+            {confirmClearAll ? (
+              <span className="confirm-del">
+                Wirklich alle Firmen löschen?{" "}
+                <button
+                  type="button"
+                  className="del-yes"
+                  onClick={handleClearAll}
+                >
+                  Ja, löschen
+                </button>
+                <button
+                  type="button"
+                  className="del-cancel"
+                  onClick={() => setConfirmClearAll(false)}
+                >
+                  Abbrechen
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="del-trigger"
+                onClick={() => setConfirmClearAll(true)}
+              >
+                Alle Daten löschen
+              </button>
+            )}
+          </div>
+          <div className="nav-foot-meta">
+            Lean v3
+            <br />
+            Tel/Mail/LinkedIn klickbar. Zeile anklicken zum Eintragen.
+          </div>
         </div>
       </aside>
 
@@ -402,9 +528,19 @@ function App() {
             onDeleteContact={handleDeleteContact}
             onSetContactEmails={handleSetContactEmails}
             onOpenFocus={handleOpenFocus}
+            onImport={handleImport}
           />
         )}
       </main>
+
+      {importDialog && (
+        <ImportDialog
+          mode={importDialog.mode}
+          rows={importDialog.rows}
+          onConfirm={handleConfirmImport}
+          onClose={() => setImportDialog(null)}
+        />
+      )}
     </div>
   );
 }

@@ -84,6 +84,16 @@ body {
   color: #b3b7c2;
   border-top: 1px solid #ececf1;
 }
+/* D-08: the clear-all danger control, low-emphasis above the meta line. The
+   del-trigger/del-yes/del-cancel/confirm-del classes (global, from
+   CompanyDetail.css) carry all the visual styling — only layout is set here. */
+.clear-all {
+  margin-bottom: 8px;
+}
+.nav-foot-meta {
+  font-size: 11px;
+  color: #b3b7c2;
+}
 
 .main {
   flex: 1;

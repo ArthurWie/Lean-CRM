@@ -410,6 +410,11 @@ type Props = {
   // D-11: opens Focus mode. The toolbar "Fokus" button is the canonical launcher;
   // App snapshots getFocusSnapshot() once and mounts FocusView.
   onOpenFocus?: () => void;
+  // Phase 5 (IMPORT-01/D-06): the "CSV importieren" button picks a .csv via a
+  // hidden file input; this fires with the chosen File. App reads file.text() →
+  // parseCsv → validateHeader → classifyRows → preview. The table never touches
+  // the data layer (DATA-02) — it only hands the File up.
+  onImport?: (file: File) => void;
   // Test-only seam: lets a test render with dead rows already visible.
   showDeadInitially?: boolean;
   // Test-only seam: lets a test render the "Zuletzt gelöscht" trash view directly.
@@ -434,9 +439,14 @@ export function CompanyTable({
   onDeleteContact,
   onSetContactEmails,
   onOpenFocus,
+  onImport,
   showDeadInitially = false,
   trashViewInitially = false,
 }: Props) {
+  // Phase 5: hidden file input the "CSV importieren" button triggers. Its value is
+  // reset after each pick so re-selecting the SAME file re-fires `change` (a native
+  // input only fires change when the value differs — RESEARCH Environment note).
+  const importInputRef = useRef<HTMLInputElement>(null);
   const [showDead, setShowDead] = useState(showDeadInitially);
   // "Zuletzt gelöscht": when true, the trash view replaces the normal table.
   const [trashView, setTrashView] = useState(trashViewInitially);
@@ -571,9 +581,26 @@ export function CompanyTable({
         >
           Zuletzt gelöscht
         </button>
-        <button className="impbtn" type="button" disabled>
+        <button
+          className="impbtn"
+          type="button"
+          onClick={() => importInputRef.current?.click()}
+        >
           CSV importieren
         </button>
+        {/* Visually hidden, triggered programmatically by the button above. Reset
+            value after each pick so the same file re-fires change (D-06). */}
+        <input
+          ref={importInputRef}
+          type="file"
+          accept=".csv"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) onImport?.(file);
+          }}
+        />
         {/* Add + Fokus are hidden in the trash view — it is read-only except restore/purge. */}
         {!trashView && (
           <>
