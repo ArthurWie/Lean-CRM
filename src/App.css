@@ -87,8 +87,8 @@ body {
 
 .main {
   flex: 1;
+  min-width: 0;
   padding: 22px 26px;
-  max-width: 1360px;
 }
 .head {
   display: flex;
