@@ -56,8 +56,15 @@ vi.mock("@tauri-apps/plugin-sql", () => {
 });
 
 // Import AFTER the mock is registered.
-const { seedIfEmpty, listCompanies, listContacts, markViewed, setManualStatus } =
-  await import("./companies");
+const {
+  seedIfEmpty,
+  listCompanies,
+  listContacts,
+  markViewed,
+  setManualStatus,
+  addCompany,
+  updateCompanyField,
+} = await import("./companies");
 const { db } = await import("../db/client");
 const { firmen, kontakte, kontakt_mails } = await import("../db/schema");
 const { eq } = await import("drizzle-orm");
@@ -176,5 +183,85 @@ describe("companies data layer", () => {
       .from(firmen)
       .where(eq(firmen.id, himmelhoch.id));
     expect(updated.status).toBe("Geparkt");
+  });
+
+  // --- DB-07: manual add + inline edit (Plan 03-03) ---
+
+  it("addCompany inserts one firma with Status Neu, heiss false, UUID id, UTC-ISO timestamps", async () => {
+    const before = (await listCompanies()).length;
+    const id = await addCompany({ name: "Acme GmbH" });
+
+    const after = await listCompanies();
+    expect(after.length).toBe(before + 1);
+    const acme = after.find((c) => c.id === id)!;
+    expect(acme).toBeDefined();
+    expect(acme.name).toBe("Acme GmbH");
+    expect(acme.status).toBe("Neu"); // the no-interaction deriveStatus default
+    expect(acme.heiss).toBe(false);
+    // crypto.randomUUID() shape
+    expect(acme.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
+    expect(acme.created_at).toMatch(/^\d{4}-\d{2}-\d{2}T/); // UTC ISO
+    expect(acme.updated_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(acme.created_at).toBe(acme.updated_at); // same instant on insert
+  });
+
+  it("addCompany trims the name and rejects an empty/whitespace name (no row created)", async () => {
+    const before = (await listCompanies()).length;
+    await expect(addCompany({ name: "   " })).rejects.toThrow();
+    expect((await listCompanies()).length).toBe(before); // nothing inserted
+
+    const id = await addCompany({ name: "  Trimmed GmbH  " });
+    const created = (await listCompanies()).find((c) => c.id === id)!;
+    expect(created.name).toBe("Trimmed GmbH"); // trimmed
+  });
+
+  it("addCompany persists optional fields when given and leaves them null when omitted", async () => {
+    const withFields = await addCompany({
+      name: "Voll GmbH",
+      fn: "FN 123x",
+      branche: "IT",
+      groesse: "~10",
+      website: "voll.at",
+    });
+    const minimal = await addCompany({ name: "Leer GmbH" });
+
+    const all = await listCompanies();
+    const full = all.find((c) => c.id === withFields)!;
+    const min = all.find((c) => c.id === minimal)!;
+
+    expect(full.fn).toBe("FN 123x");
+    expect(full.branche).toBe("IT");
+    expect(full.groesse).toBe("~10");
+    expect(full.website).toBe("voll.at");
+
+    expect(min.fn).toBeNull();
+    expect(min.branche).toBeNull();
+    expect(min.groesse).toBeNull();
+    expect(min.website).toBeNull();
+  });
+
+  it("updateCompanyField updates only the targeted row and bumps updated_at", async () => {
+    const aId = await addCompany({ name: "Eins GmbH" });
+    const bId = await addCompany({ name: "Zwei GmbH" });
+    const before = await listCompanies();
+    const aBefore = before.find((c) => c.id === aId)!;
+    const bBefore = before.find((c) => c.id === bId)!;
+
+    // Ensure a later timestamp than the insert.
+    await new Promise((r) => setTimeout(r, 2));
+    await updateCompanyField(aId, { fn: "FN 999z" });
+
+    const after = await listCompanies();
+    const aAfter = after.find((c) => c.id === aId)!;
+    const bAfter = after.find((c) => c.id === bId)!;
+
+    expect(aAfter.fn).toBe("FN 999z");
+    // updated_at is bumped forward (strictly later than the insert timestamp).
+    expect(aAfter.updated_at > aBefore.updated_at).toBe(true);
+    // The other row is untouched.
+    expect(bAfter.fn).toBe(bBefore.fn);
+    expect(bAfter.updated_at).toBe(bBefore.updated_at);
   });
 });
