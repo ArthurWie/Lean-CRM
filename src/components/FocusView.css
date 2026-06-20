@@ -1,0 +1,219 @@
+/* FocusView.css — the distraction-free Focus card (direction B, Linear / SaaS).
+   Consumes the shared :root tokens declared in CompanyTable.css (loaded app-wide)
+   — never redeclares them. One centered white card on the off-white page; the
+   single solid-violet CTA is Anrufen (10% accent rule). Mail / in / Überspringen
+   are secondary outline buttons. Pixel rhythm matches the reused LogForm card
+   (14px card padding, 8px radii) for visual continuity. */
+
+.focus-page {
+  background: var(--bg);
+  min-height: 100%;
+  padding: 64px 26px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.focus-card {
+  width: 100%;
+  max-width: 600px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 4px 20px rgba(20, 20, 40, 0.06);
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Counter (Task 2) sits top, faint meta. */
+.focus-counter {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--faint);
+  align-self: flex-end;
+}
+
+.focus-head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.focus-name {
+  font-size: 27px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.3px;
+  color: var(--ink);
+}
+.focus-name .flame {
+  font-size: 27px; /* inline at the name's size (UI-02 — small, subtle, sole emoji) */
+}
+.focus-meta {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--soft);
+}
+
+/* Why-now line — semantic tint per reason (NOT accent). */
+.whynow {
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 7px;
+  align-self: flex-start;
+}
+.whynow.due {
+  color: var(--amber);
+  background: var(--amber-soft);
+}
+.whynow.hot {
+  color: var(--hot);
+  background: var(--hot-soft);
+}
+.whynow.neu {
+  color: var(--soft);
+  background: var(--line2);
+}
+
+/* Pre-call context — Letzte Notizen + Lessons learned. */
+.focus-context h4 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--faint);
+  margin: 0 0 10px;
+}
+.focus-context h4.mt {
+  margin-top: 20px;
+}
+.ctx-hist {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ctx-hi {
+  font-size: 12.5px;
+  color: var(--ink);
+  line-height: 1.5;
+}
+.ctx-hm {
+  color: var(--faint);
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+.ctx-hi .by {
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 7px;
+  padding: 2px 8px;
+  margin-left: 5px;
+  white-space: nowrap;
+}
+.ctx-empty,
+.ctx-lessons {
+  font-size: 12.5px;
+  color: var(--soft);
+  line-height: 1.5;
+}
+
+/* Action row — one solid-violet Anrufen CTA + secondary outline Mail / in. */
+.focus-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.act-call {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 22px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(99, 102, 241, 0.3);
+}
+.act-call:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+.act-sec {
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 8px 15px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--soft);
+  cursor: pointer;
+}
+.act-sec:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--faint);
+}
+.act-call:disabled,
+.act-sec:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Skip — secondary, non-destructive (D-05/D-08). */
+.focus-foot {
+  display: flex;
+  justify-content: center;
+}
+.act-skip {
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 8px 15px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--soft);
+  cursor: pointer;
+}
+.act-skip:hover {
+  color: var(--ink);
+  border-color: var(--faint);
+}
+
+/* Completion (D-09) + empty-start (D-10) screens — centered, neutral ink. */
+.focus-end {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  padding: 16px 0;
+}
+.focus-end h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+}
+.focus-end p {
+  font-size: 13px;
+  color: var(--soft);
+  margin: 0;
+}
+.focus-back {
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 8px 15px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+.focus-back:hover {
+  filter: brightness(1.05);
+}

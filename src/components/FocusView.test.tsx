@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { FocusView } from "./FocusView";
 import type { FocusCompany } from "../data/focus";
 import type { Contact } from "../data/companies";
@@ -92,8 +92,9 @@ describe("FocusView renders", () => {
       />,
     );
     expect(screen.getByText("Acme GmbH")).toBeTruthy();
-    // 🔥 renders next to the name when the company is hot.
-    expect(screen.getByText(/🔥/)).toBeTruthy();
+    // 🔥 renders next to the name when the company is hot (the LogForm's
+    // "🔥 heiß" checkbox also has a flame, so scope to the .flame span).
+    expect(document.querySelector(".focus-name .flame")?.textContent).toContain("🔥");
     expect(screen.getByText(/IT/)).toBeTruthy();
     expect(screen.getByText(/~37/)).toBeTruthy();
     expect(screen.getByText("Letzte Notizen")).toBeTruthy();
