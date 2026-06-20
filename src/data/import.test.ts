@@ -216,18 +216,22 @@ describe("normName + legal-form strip (D-02)", () => {
   });
 
   it("strips the literal book1 multi-word legal-form suffixes (keeps the stem)", () => {
-    // "Gesellschaft m.b.H." — strip the trailing legal-form token, keep stem.
+    // "Gesellschaft m.b.H." is itself the trailing legal-form token (D-02) — the
+    // descriptive stem that remains is "Bohmann Druck und Verlag".
     expect(normName("Bohmann Druck- und Verlag Gesellschaft m.b.H.")).toBe(
-      normName("Bohmann Druck- und Verlag Gesellschaft"),
+      "bohmann druck und verlag",
     );
+    // "Verlagsgesellschaft" is the descriptive stem; only the "m.b.H." suffix strips.
     expect(normName("Falter Verlagsgesellschaft m.b.H.")).toBe(
-      normName("Falter Verlagsgesellschaft"),
+      "falter verlagsgesellschaft",
     );
+    // "Werbegesellschaft" is the descriptive stem; only "mbH" strips.
     expect(normName("Demner, Merlicek & Bergmann Werbegesellschaft mbH")).toBe(
-      normName("Demner Merlicek Bergmann Werbegesellschaft"),
+      "demner merlicek bergmann werbegesellschaft",
     );
+    // "GmbH & Co. KG" strips as one trailing token (longest-first).
     expect(normName("Serviceplan Austria GmbH & Co. KG")).toBe(
-      normName("Serviceplan Austria"),
+      "serviceplan austria",
     );
   });
 
