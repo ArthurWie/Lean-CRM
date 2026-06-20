@@ -1,9 +1,31 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import { CompanyTable } from "./CompanyTable";
-import type { Company } from "../data/companies";
+import type { Company, Contact } from "../data/companies";
 import type { Interaction } from "../data/interactions";
+
+// Mock the OS-shell opener so contact-action clicks assert the exact URL handed
+// to openUrl without touching the OS (mirrors the plugin-sql mock shape).
+const openUrl = vi.fn(async (_url: string) => {});
+vi.mock("@tauri-apps/plugin-opener", () => ({
+  openUrl: (url: string) => openUrl(url),
+}));
+
+function contact(
+  over: Partial<Contact> & Pick<Contact, "id" | "firma_id">,
+): Contact {
+  return {
+    name: "Eva Mandl",
+    rolle: null,
+    telefon: null,
+    linkedin: null,
+    li_angenommen: false,
+    relevant: false,
+    emails: [],
+    ...over,
+  } as Contact;
+}
 
 // Minimal Company fixtures. Only the fields the table reads are meaningful;
 // the rest satisfy the type. created_at/updated_at are required strings.
@@ -158,6 +180,73 @@ describe("CompanyTable", () => {
     );
     fireEvent.click(screen.getByText("Himmelhoch GmbH"));
     expect(onOpenRow).toHaveBeenCalledWith("1");
+  });
+
+  describe("contact actions (CONTACT-01/02/03)", () => {
+    beforeEach(() => openUrl.mockClear());
+
+    const fullContact = contact({
+      id: "k1",
+      firma_id: "1",
+      telefon: "+43 1 234-567",
+      emails: ["office@himmelhoch.at", "eva@himmelhoch.at"],
+      linkedin: "linkedin.com/in/eva-mandl",
+    });
+
+    function renderWithContact(c: Contact) {
+      return render(
+        <CompanyTable
+          companies={[company({ id: "1", name: "Himmelhoch GmbH", status: "Im Gespräch" })]}
+          interactionsByFirma={{ "1": [] }}
+          contactsByFirma={{ "1": [c] }}
+        />,
+      );
+    }
+
+    it("enables Tel/Mail/in with title = underlying value when data present", () => {
+      renderWithContact(fullContact);
+      const tel = screen.getByText("Tel");
+      const mail = screen.getByText("Mail");
+      const li = screen.getByText("in");
+      expect(tel.className).toContain("tel");
+      expect(tel.className).not.toContain("off");
+      expect(tel.getAttribute("title")).toBe("+43 1 234-567");
+      // Mail title = first/primary email (D-02).
+      expect(mail.getAttribute("title")).toBe("office@himmelhoch.at");
+      expect(mail.className).not.toContain("off");
+      expect(li.className).toContain("acc");
+      expect(li.getAttribute("title")).toBe("linkedin.com/in/eva-mandl");
+    });
+
+    it("clicking Tel fires openUrl with a tel: URL and does NOT toggle the row (stopPropagation, Pitfall 3)", () => {
+      renderWithContact(fullContact);
+      expect(screen.queryByText("Verlauf (Notizen)")).toBeNull();
+      fireEvent.click(screen.getByText("Tel"));
+      expect(openUrl).toHaveBeenCalledTimes(1);
+      expect(openUrl).toHaveBeenCalledWith("tel:+431234567");
+      // Detail panel stays closed.
+      expect(screen.queryByText("Verlauf (Notizen)")).toBeNull();
+    });
+
+    it("clicking Mail fires openUrl with mailto: of the first email", () => {
+      renderWithContact(fullContact);
+      fireEvent.click(screen.getByText("Mail"));
+      expect(openUrl).toHaveBeenCalledWith("mailto:office@himmelhoch.at");
+    });
+
+    it("clicking in fires openUrl with the https-normalized LinkedIn URL", () => {
+      renderWithContact(fullContact);
+      fireEvent.click(screen.getByText("in"));
+      expect(openUrl).toHaveBeenCalledWith("https://linkedin.com/in/eva-mandl");
+    });
+
+    it("greys out a span (ci off) when its data is missing and the click is a no-op", () => {
+      renderWithContact(contact({ id: "k2", firma_id: "1" })); // no telefon/email/linkedin
+      const tel = screen.getByText("Tel");
+      expect(tel.className).toContain("off");
+      fireEvent.click(tel);
+      expect(openUrl).not.toHaveBeenCalled();
+    });
   });
 
   it("shows a blue dot on Notizen when the newest note is newer than last_viewed, and none when older (DB-05)", () => {

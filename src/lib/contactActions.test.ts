@@ -5,9 +5,9 @@
 // only @tauri-apps/plugin-opener, never drizzle).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const openUrl = vi.fn(async () => {});
+const openUrl = vi.fn(async (_url: string) => {});
 vi.mock("@tauri-apps/plugin-opener", () => ({
-  openUrl: (...args: unknown[]) => openUrl(...args),
+  openUrl: (url: string) => openUrl(url),
 }));
 
 const { openTel, openMail, openLinkedIn } = await import("./contactActions");
