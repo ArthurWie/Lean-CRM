@@ -13,10 +13,26 @@ import type { ManualOverride } from "../types";
 
 export type Interaction = typeof interaktionen.$inferSelect;
 
-// The transaction handle drizzle hands to a db.transaction(async (tx) => …)
-// callback. rederive runs inside the same tx so the INSERT/UPDATE and the
-// status re-derivation either all commit or all roll back together (CR-01).
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+// WHY NO db.transaction() (mirrors companies.deleteCompany): the data layer
+// runs on drizzle's sqlite-proxy (src/db/client.ts) over @tauri-apps/plugin-sql
+// v2. drizzle's sqlite-proxy transaction() issues `begin`, each statement, and
+// `commit` as SEPARATE proxy round-trips — every one a distinct
+// invoke('plugin:sql|execute') IPC call. The Rust plugin serves each call from
+// an sqlx connection POOL, so `begin`, the writes, and `commit` can each land on
+// a DIFFERENT pooled connection. The `begin` then opens a transaction on a
+// connection the writes never touch, and `commit` runs on a connection with no
+// active transaction → it throws, the whole write rejects, App's handler
+// swallows it, and nothing persists. A single-connection mock hides this (the
+// test DB shares one handle), so the mocked tests passed while the real Tauri
+// app silently failed to log interactions and persist edited notes.
+//
+// Fix: sequential awaited statements, no transaction wrapper — each is its own
+// pooled-connection round-trip and commits on its own (sqlx autocommit per
+// statement). We accept best-effort, non-atomic writes here: this is a
+// single-user local SQLite DB. The re-derive runs LAST so even on a partial
+// failure firmen.status is only ever recomputed after the write it reflects;
+// the worst case is a stale status row, recoverable by the next mutation — far
+// better than the previous "nothing persists at all" failure.
 
 /**
  * Re-derive firmen.status from the current interaktionen set and persist it
@@ -24,17 +40,17 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
  * firma currently holds one of those, it is passed as the override to
  * deriveStatus so a new/edited/deleted interaction never overwrites it.
  *
- * Runs against the supplied transaction handle so the re-derive is atomic with
- * the mutation that triggered it — a crash between the two can no longer leave
- * firmen.status stale (CR-01).
+ * Runs as plain sequential statements on the shared db handle (no transaction —
+ * see the module note above). Called LAST in each mutation so firmen.status
+ * always reflects the writes that preceded it.
  */
-async function rederive(tx: Tx, firmaId: string): Promise<void> {
-  const interactions = await tx
+async function rederive(firmaId: string): Promise<void> {
+  const interactions = await db
     .select()
     .from(interaktionen)
     .where(eq(interaktionen.firma_id, firmaId));
 
-  const firmaRows = await tx
+  const firmaRows = await db
     .select()
     .from(firmen)
     .where(eq(firmen.id, firmaId));
@@ -43,7 +59,7 @@ async function rederive(tx: Tx, firmaId: string): Promise<void> {
     current === "Tot" || current === "Geparkt" ? current : null;
 
   const status = deriveStatus(interactions, override);
-  await tx
+  await db
     .update(firmen)
     .set({ status, updated_at: new Date().toISOString() })
     .where(eq(firmen.id, firmaId));
@@ -58,41 +74,39 @@ export async function logInteraction(input: {
   heiss?: boolean;
   followup?: { faellig_am: string; grund?: string };
 }): Promise<void> {
-  // All writes + the re-derive run in one transaction so a crash can never leave
-  // the interaction row persisted with firmen.status un-re-derived (CR-01).
-  await db.transaction(async (tx) => {
-    await tx.insert(interaktionen).values({
+  // Sequential awaited writes, no db.transaction() (see module note): insert the
+  // interaction, set 🔥, capture the follow-up, then re-derive status LAST.
+  await db.insert(interaktionen).values({
+    id: crypto.randomUUID(),
+    firma_id: input.firma_id,
+    kontakt_id: input.kontakt_id ?? null,
+    datum: new Date().toISOString(), // UTC ISO, matches created_at convention
+    kanal: input.kanal,
+    outcome: input.outcome,
+    notiz: input.notiz,
+    bearbeiter: "Arthur", // D-08: single-user default (column also defaults this)
+  });
+
+  // 🔥 writes the boolean integer-mode column unconditionally on every log, so
+  // un-ticking the checkbox actually clears it (WR-02: heiss is a toggle, not a
+  // one-way ratchet). LogForm always emits a concrete boolean; default false.
+  await db
+    .update(firmen)
+    .set({ heiss: input.heiss ?? false })
+    .where(eq(firmen.id, input.firma_id));
+
+  // Phase 2 only CAPTURES the follow-up (no surfacing — D-05).
+  if (input.followup) {
+    await db.insert(followups).values({
       id: crypto.randomUUID(),
       firma_id: input.firma_id,
-      kontakt_id: input.kontakt_id ?? null,
-      datum: new Date().toISOString(), // UTC ISO, matches created_at convention
-      kanal: input.kanal,
-      outcome: input.outcome,
-      notiz: input.notiz,
-      bearbeiter: "Arthur", // D-08: single-user default (column also defaults this)
+      faellig_am: input.followup.faellig_am,
+      grund: input.followup.grund ?? null,
+      erledigt: false,
     });
+  }
 
-    // 🔥 writes the boolean integer-mode column unconditionally on every log, so
-    // un-ticking the checkbox actually clears it (WR-02: heiss is a toggle, not a
-    // one-way ratchet). LogForm always emits a concrete boolean; default false.
-    await tx
-      .update(firmen)
-      .set({ heiss: input.heiss ?? false })
-      .where(eq(firmen.id, input.firma_id));
-
-    // Phase 2 only CAPTURES the follow-up (no surfacing — D-05).
-    if (input.followup) {
-      await tx.insert(followups).values({
-        id: crypto.randomUUID(),
-        firma_id: input.firma_id,
-        faellig_am: input.followup.faellig_am,
-        grund: input.followup.grund ?? null,
-        erledigt: false,
-      });
-    }
-
-    await rederive(tx, input.firma_id);
-  });
+  await rederive(input.firma_id);
 }
 
 /**
@@ -119,11 +133,10 @@ export async function editInteraction(
   const row = rows[0];
   if (!row) return; // nothing to edit
 
-  // Edit + re-derive atomically (CR-01).
-  await db.transaction(async (tx) => {
-    await tx.update(interaktionen).set(patch).where(eq(interaktionen.id, id));
-    await rederive(tx, row.firma_id);
-  });
+  // Edit then re-derive, sequential awaited writes (no db.transaction — see
+  // module note). This path also backs updateInteractionNote (Notizen inline-edit).
+  await db.update(interaktionen).set(patch).where(eq(interaktionen.id, id));
+  await rederive(row.firma_id);
 }
 
 /**
@@ -132,9 +145,8 @@ export async function editInteraction(
  * The Notizen column renders the NEWEST interaction's note (deriveNewestNote);
  * editing that cell flows here with that interaction's id. We patch ONLY `notiz`
  * — outcome/kanal are untouched, so the derived Status/Nächster Schritt do not
- * change. We still re-derive inside the same transaction (CR-01): it is a cheap
- * no-op for a note-only change today and keeps every interaction mutation on the
- * one atomic edit+re-derive path, so this can never drift from editInteraction.
+ * change. We still re-derive (a cheap no-op for a note-only change today) so this
+ * stays on the one edit+re-derive path and can never drift from editInteraction.
  *
  * This is intentionally NOT a standalone "company note" field: the note lives on
  * the interaction (D-07 amended) so the Phase-2 derivation stays the single
@@ -155,9 +167,8 @@ export async function deleteInteraction(id: string): Promise<void> {
   const row = rows[0];
   if (!row) return; // nothing to delete
 
-  // Delete + re-derive atomically (CR-01).
-  await db.transaction(async (tx) => {
-    await tx.delete(interaktionen).where(eq(interaktionen.id, id));
-    await rederive(tx, row.firma_id);
-  });
+  // Delete then re-derive, sequential awaited writes (no db.transaction — see
+  // module note).
+  await db.delete(interaktionen).where(eq(interaktionen.id, id));
+  await rederive(row.firma_id);
 }

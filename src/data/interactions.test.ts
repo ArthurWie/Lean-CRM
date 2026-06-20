@@ -34,6 +34,13 @@ function applyMigration(dbInstance: DatabaseSyncType) {
   }
 }
 
+// A hoisted recorder of every non-SELECT statement that reaches the plugin's
+// execute() — i.e. the real INSERT/UPDATE/DELETE (and any begin/commit) round-
+// trips the proxy makes. The regression test reads this to assert the logging /
+// note / delete writes do NOT wrap themselves in db.transaction(), independent
+// of object identity across the vi.mock module boundary (mirrors companies.test).
+const { executedSql } = vi.hoisted(() => ({ executedSql: [] as string[] }));
+
 vi.mock("@tauri-apps/plugin-sql", () => {
   const fakeDb = {
     async select(query: string, params: unknown[] = []) {
@@ -41,6 +48,7 @@ vi.mock("@tauri-apps/plugin-sql", () => {
       return rows.map((r) => ({ ...r }));
     },
     async execute(query: string, params: unknown[] = []) {
+      executedSql.push(query);
       const info = sqlite.prepare(query).run(...(params as any[]));
       return { rowsAffected: Number(info.changes), lastInsertId: 0 };
     },
@@ -248,5 +256,88 @@ describe("interactions data layer", () => {
     const aRows = await listInteractions(a);
     expect(aRows).toHaveLength(2);
     expect(aRows.every((r) => r.firma_id === a)).toBe(true);
+  });
+
+  // REGRESSION (runtime logging/note bug): the interaction mutations must NOT wrap
+  // their writes in db.transaction(). The sqlite-proxy issues begin/statements/
+  // commit as separate proxy round-trips, and the real Tauri plugin serves each
+  // from an sqlx pool, so begin/writes/commit can land on different connections →
+  // commit throws → logging and edited notes silently fail to persist in the
+  // running app (the single-connection test mock hid it). These tests assert NO
+  // begin/commit reach the execute path — they fail if anyone reintroduces a
+  // transaction wrapper around logInteraction/editInteraction/deleteInteraction.
+  it("logInteraction issues its writes with no begin/commit (no db.transaction)", async () => {
+    const firmaId = await seedFirma();
+    executedSql.length = 0;
+    await logInteraction({
+      firma_id: firmaId,
+      kanal: "Telefon",
+      outcome: "Rückruf vereinbart",
+      notiz: "x",
+      heiss: true,
+      followup: { faellig_am: "2026-07-01T00:00:00.000Z", grund: "Rückruf" },
+    });
+
+    const ctrl = executedSql.filter((sql) =>
+      /^\s*(begin|commit|rollback)\b/i.test(sql),
+    );
+    expect(ctrl).toHaveLength(0);
+    // The real writes still fire: insert interaction, set heiss, insert followup,
+    // update status on re-derive.
+    expect(executedSql.some((s) => /insert into "interaktionen"/i.test(s))).toBe(true);
+    expect(executedSql.some((s) => /insert into "followups"/i.test(s))).toBe(true);
+    expect(executedSql.some((s) => /update "firmen"/i.test(s))).toBe(true);
+  });
+
+  it("editInteraction (and updateInteractionNote) issues its writes with no begin/commit", async () => {
+    const firmaId = await seedFirma();
+    await logInteraction({
+      firma_id: firmaId,
+      kanal: "Telefon",
+      outcome: "Gesprochen",
+      notiz: "alt",
+    });
+    const [row] = await db
+      .select()
+      .from(interaktionen)
+      .where(eq(interaktionen.firma_id, firmaId));
+
+    executedSql.length = 0;
+    await updateInteractionNote(row.id, "neu");
+
+    const ctrl = executedSql.filter((sql) =>
+      /^\s*(begin|commit|rollback)\b/i.test(sql),
+    );
+    expect(ctrl).toHaveLength(0);
+    expect(executedSql.some((s) => /update "interaktionen"/i.test(s))).toBe(true);
+    // and the note actually persisted (the runtime symptom this guards against)
+    const [after] = await db
+      .select()
+      .from(interaktionen)
+      .where(eq(interaktionen.id, row.id));
+    expect(after.notiz).toBe("neu");
+  });
+
+  it("deleteInteraction issues its writes with no begin/commit", async () => {
+    const firmaId = await seedFirma();
+    await logInteraction({
+      firma_id: firmaId,
+      kanal: "Telefon",
+      outcome: "Gesprochen",
+      notiz: "x",
+    });
+    const [row] = await db
+      .select()
+      .from(interaktionen)
+      .where(eq(interaktionen.firma_id, firmaId));
+
+    executedSql.length = 0;
+    await deleteInteraction(row.id);
+
+    const ctrl = executedSql.filter((sql) =>
+      /^\s*(begin|commit|rollback)\b/i.test(sql),
+    );
+    expect(ctrl).toHaveLength(0);
+    expect(executedSql.some((s) => /delete from "interaktionen"/i.test(s))).toBe(true);
   });
 });
