@@ -365,3 +365,163 @@ describe("classifyRows (D-04 / D-05 / D-07)", () => {
     expect(typeof out[0].reason).toBe("string");
   });
 });
+
+// ---------------------------------------------------------------------------
+// IMPURE WRITER + CLEAR-ALL (Task 2) — node:sqlite harness
+// ---------------------------------------------------------------------------
+
+import { eq } from "drizzle-orm";
+
+async function countRows(table: any): Promise<number> {
+  return (await db.select().from(table)).length;
+}
+
+// The control-statement filter the no-transaction tests assert is empty (the
+// exact template from interactions.test.ts:270-290).
+const isControl = (sql: string) => /^\s*(begin|commit|rollback)\b/i.test(sql);
+
+describe("importCsv writer (IMPORT-07 / D-01 / D-09)", () => {
+  it("inserts a firmen row with status Neu, UUID, UTC ts, merged lessons, and NO interaktionen row", async () => {
+    await importCsv([
+      row({
+        unternehmen: "Brandneu GmbH",
+        branche: "PR",
+        groesse: "~30",
+        lessons: "vorsichtig",
+        notiz: "angerufen",
+      }),
+    ]);
+
+    const firms = await db.select().from(firmen);
+    expect(firms).toHaveLength(1);
+    const f = firms[0];
+    expect(f.name).toBe("Brandneu GmbH");
+    expect(f.status).toBe("Neu"); // IMPORT-07: derive stays Neu
+    expect(f.heiss).toBe(false);
+    expect(f.id).toMatch(/^[0-9a-f-]{36}$/); // UUID
+    expect(f.created_at).toMatch(/^\d{4}-\d{2}-\d{2}T.*Z$/); // UTC ISO
+    expect(f.created_at).toBe(f.updated_at); // one shared timestamp
+    expect(f.lessons).toBe("vorsichtig — angerufen"); // D-01 merge
+
+    // IMPORT-07: NO interaktionen row was created (so deriveStatus([]) → "Neu").
+    expect(await countRows(interaktionen)).toBe(0);
+    expect(executedSql.some((s) => /insert into "interaktionen"/i.test(s))).toBe(false);
+    // The real firmen insert DID fire.
+    expect(executedSql.some((s) => /insert into "firmen"/i.test(s))).toBe(true);
+  });
+
+  it("creates a kontakte + one kontakt_mails per email when any contact field is set (D-09)", async () => {
+    await importCsv([
+      row({
+        unternehmen: "Mit Kontakt GmbH",
+        ansprechpartner: "Siegmar Schlager",
+        rolle: "Geschäftsführer",
+        telefon: "+43 1 536 60 0",
+        email: "office@falter.at;schlager@falter.at",
+      }),
+    ]);
+
+    const contacts = await db.select().from(kontakte);
+    expect(contacts).toHaveLength(1);
+    expect(contacts[0].name).toBe("Siegmar Schlager");
+
+    const mails = await db
+      .select()
+      .from(kontakt_mails)
+      .where(eq(kontakt_mails.kontakt_id, contacts[0].id));
+    expect(mails.map((m) => m.email).sort()).toEqual([
+      "office@falter.at",
+      "schlager@falter.at",
+    ]);
+  });
+
+  it("leaves kontakte.name null when ansprechpartner empty but another contact field is set", async () => {
+    await importCsv([
+      row({ unternehmen: "Nur Telefon GmbH", telefon: "+43 1 999" }),
+    ]);
+    const contacts = await db.select().from(kontakte);
+    expect(contacts).toHaveLength(1);
+    expect(contacts[0].name).toBeNull(); // D-09: name nullable
+  });
+
+  it("creates NO kontakte row when all contact fields are empty (book1-shaped row)", async () => {
+    await importCsv([
+      row({ unternehmen: "Nur Firma GmbH", branche: "Mediengruppe", groesse: "~120" }),
+    ]);
+    expect(await countRows(firmen)).toBe(1);
+    expect(await countRows(kontakte)).toBe(0);
+    expect(await countRows(kontakt_mails)).toBe(0);
+  });
+
+  it("issues NO begin/commit/rollback (no db.transaction) while the real inserts fire", async () => {
+    executedSql.length = 0;
+    await importCsv([
+      row({
+        unternehmen: "Kein Begin GmbH",
+        ansprechpartner: "X",
+        email: "x@y.at",
+      }),
+    ]);
+    expect(executedSql.filter(isControl)).toHaveLength(0);
+    expect(executedSql.some((s) => /insert into "firmen"/i.test(s))).toBe(true);
+    expect(executedSql.some((s) => /insert into "kontakte"/i.test(s))).toBe(true);
+    expect(executedSql.some((s) => /insert into "kontakt_mails"/i.test(s))).toBe(true);
+  });
+});
+
+describe("clearAllData (D-08)", () => {
+  it("empties all five tables in FK-safe order, with no begin/commit/rollback", async () => {
+    // Seed one of every dependent row via the writer + direct inserts.
+    await importCsv([
+      row({ unternehmen: "Weg GmbH", ansprechpartner: "Y", email: "y@z.at" }),
+    ]);
+    const [f] = await db.select().from(firmen);
+    const ts = new Date().toISOString();
+    await db.insert(interaktionen).values({
+      id: crypto.randomUUID(),
+      firma_id: f.id,
+      datum: ts,
+      kanal: "Telefon",
+      outcome: "Gesprochen",
+      notiz: "x",
+      bearbeiter: "Arthur",
+    });
+    await db.insert(followups).values({
+      id: crypto.randomUUID(),
+      firma_id: f.id,
+      faellig_am: ts,
+      grund: "Rückruf",
+      erledigt: false,
+    });
+
+    // Sanity: every table is non-empty before the clear.
+    expect(await countRows(firmen)).toBeGreaterThan(0);
+    expect(await countRows(kontakte)).toBeGreaterThan(0);
+    expect(await countRows(kontakt_mails)).toBeGreaterThan(0);
+    expect(await countRows(interaktionen)).toBeGreaterThan(0);
+    expect(await countRows(followups)).toBeGreaterThan(0);
+
+    executedSql.length = 0;
+    await clearAllData();
+
+    // All five tables empty.
+    expect(await countRows(kontakt_mails)).toBe(0);
+    expect(await countRows(kontakte)).toBe(0);
+    expect(await countRows(interaktionen)).toBe(0);
+    expect(await countRows(followups)).toBe(0);
+    expect(await countRows(firmen)).toBe(0);
+
+    // No transaction wrapper.
+    expect(executedSql.filter(isControl)).toHaveLength(0);
+
+    // FK-safe order: kontakt_mails → kontakte → interaktionen → followups → firmen.
+    const deletes = executedSql.filter((s) => /^\s*delete from/i.test(s));
+    const idx = (t: string) =>
+      deletes.findIndex((s) => new RegExp(`delete from "${t}"`, "i").test(s));
+    expect(idx("kontakt_mails")).toBeGreaterThanOrEqual(0);
+    expect(idx("kontakt_mails")).toBeLessThan(idx("kontakte"));
+    expect(idx("kontakte")).toBeLessThan(idx("interaktionen"));
+    expect(idx("interaktionen")).toBeLessThan(idx("followups"));
+    expect(idx("followups")).toBeLessThan(idx("firmen"));
+  });
+});
