@@ -40,8 +40,11 @@ type Props = {
   // Speichern & weiter: parent logs + resolves the follow-up; FocusView advances
   // the cursor after it resolves.
   onSaveAndNext: (firmaId: string, entry: LogEntry) => void | Promise<void>;
-  // Überspringen: FocusView re-queues to the end (D-08). The parent may use this
-  // to lazy-load the next company's details.
+  // Überspringen: records the company as skipped for THIS session and advances to
+  // the next unseen company — it is NOT re-queued (D-08 amended, skip-counts-once).
+  // Across sessions a skipped company still resurfaces because its follow-up stays
+  // due (Plan 03's concern, not this component's). The parent may use this to
+  // lazy-load the next company's details.
   onSkip: (firmaId: string) => void;
   // Zurück zur Tabelle — fired from the empty-start and completion screens.
   onClose: () => void;
@@ -76,28 +79,33 @@ export function FocusView({
   onClose,
 }: Props) {
   // -------------------------------------------------------------------------
-  // In-memory cursor (D-07/D-08/D-09, FOCUS-05/06). No analog file — pure
-  // useState. The COUNTER FORMULA (the one bit RESEARCH flagged ambiguous,
-  // Open Question 1):
+  // In-memory cursor (D-07/D-08-amended/D-09, FOCUS-05/06). No analog file —
+  // pure useState. SKIP-COUNTS-ONCE model (D-08 amended at the human-verify gate;
+  // the original "re-queue forever" model was rejected):
   //
-  //   Y (denominator, "von Y")     = snapshot.length          — FIXED for the
-  //                                  whole session; a re-queued skip never grows
-  //                                  it (D-07 / Pitfall 5).
-  //   X (numerator,   "Firma X")   = calledIds.size + 1        — distinct
-  //                                  companies already finished via Speichern &
-  //                                  weiter, plus the one currently shown; capped
-  //                                  at Y so it never reads "Firma 4 von 3".
+  // Each company is in exactly one of three states: unseen, called (finished via
+  // Speichern & weiter), or skipped (Überspringen). Within a session a company is
+  // presented at most once — a skip does NOT re-queue it.
   //
-  // `queue` is the working order (init = snapshot). Überspringen moves the
-  // current company to the END of the queue (still in the queue, still un-called,
-  // still counted in Y) — so a skip-only session never auto-completes; the user
-  // keeps cycling skipped companies until they call them or press Zurück (D-08).
-  // Speichern & weiter adds the company to `calledIds` (removed from rotation).
-  // Completion fires only when NO un-called company remains.
+  // The COUNTER FORMULA (the one bit RESEARCH flagged ambiguous, Open Question 1):
+  //
+  //   Y (denominator, "von Y")   = snapshot.length              — FIXED for the
+  //                                whole session (D-07 / Pitfall 5).
+  //   X (numerator,   "Firma X") = calledIds.size + skippedIds.size + 1
+  //                                — every company already resolved (called OR
+  //                                skipped) plus the one currently shown; capped
+  //                                at Y so it never reads "Firma 4 von 3". The
+  //                                first company shows "Firma 1 von Y", the last
+  //                                "Firma Y von Y".
+  //
+  // The snapshot order is fixed (D-07); the cursor walks forward past any company
+  // that is already called or skipped. Überspringen adds the company to
+  // `skippedIds`; Speichern & weiter adds it to `calledIds`. Completion fires when
+  // NO unseen company remains (calledIds.size + skippedIds.size === total).
   // -------------------------------------------------------------------------
-  const [queue, setQueue] = useState<FocusCompany[]>(snapshot);
   const [index, setIndex] = useState(0);
   const [calledIds, setCalledIds] = useState<Set<string>>(() => new Set());
+  const [skippedIds, setSkippedIds] = useState<Set<string>>(() => new Set());
 
   const total = snapshot.length; // Y — fixed.
 
@@ -118,23 +126,22 @@ export function FocusView({
     );
   }
 
-  // Find the current un-called company starting at `index` (a called company can
-  // sit in the queue if it was skipped before being called — defensive skip).
+  // Find the current unseen company starting at `index` over the FIXED snapshot
+  // order — walk forward past any company already called or skipped this session.
   const currentPos = (() => {
-    for (let i = index; i < queue.length; i++) {
-      if (!calledIds.has(queue[i].id)) return i;
+    for (let i = index; i < snapshot.length; i++) {
+      const id = snapshot[i].id;
+      if (!calledIds.has(id) && !skippedIds.has(id)) return i;
     }
-    return -1; // no un-called company remains -> completion
+    return -1; // no unseen company remains -> completion
   })();
 
-  // Completion (D-09): every company has been called. calledCount = finished;
-  // skippedCount = companies the session ended without ever calling (total minus
-  // called). At the natural completion screen skippedCount is 0 (completion
-  // requires no un-called remaining); the formula stays robust if a parent ever
-  // forces an early close.
+  // Completion (D-09): no unseen company remains. Under skip-counts-once both
+  // counts are meaningful — calledCount = companies finished via Speichern &
+  // weiter, skippedCount = companies the user pressed Überspringen on.
   if (currentPos === -1) {
     const calledCount = calledIds.size;
-    const skippedCount = total - calledCount;
+    const skippedCount = skippedIds.size;
     return (
       <div className="focus-page">
         <div className="focus-card">
@@ -151,10 +158,11 @@ export function FocusView({
     );
   }
 
-  const company = queue[currentPos];
+  const company = snapshot[currentPos];
 
-  // X = distinct finished + the one currently shown, capped at Y.
-  const counterX = Math.min(calledIds.size + 1, total);
+  // X = every company already resolved (called OR skipped) + the one currently
+  // shown, capped at Y.
+  const counterX = Math.min(calledIds.size + skippedIds.size + 1, total);
 
   const primary = contactsByFirma[company.id]?.[0];
   const primaryEmail = primary?.emails[0];
@@ -165,16 +173,19 @@ export function FocusView({
   );
 
   function handleSkip() {
-    // Re-queue the current company to the END (D-08); advance past it. We rebuild
-    // the queue moving `company` last, then keep `index` at currentPos so the
-    // next un-called company (now occupying this slot) is served.
+    // Skip-counts-once (D-08 amended): record the company as skipped and advance
+    // past it in the fixed snapshot order. It is NOT re-queued, so it never
+    // reappears this session. Across sessions it resurfaces via its still-due
+    // follow-up (Plan 03).
     onSkip(company.id);
-    setQueue((q) => {
-      const rest = q.filter((_, i) => i !== currentPos);
-      return [...rest, company];
+    setSkippedIds((prev) => {
+      const next = new Set(prev);
+      next.add(company.id);
+      return next;
     });
-    // After removal, the next company shifts into currentPos; keep index there.
-    setIndex(currentPos);
+    // Advance from the current position; the next render recomputes currentPos
+    // over the updated skippedIds.
+    setIndex(currentPos + 1);
   }
 
   async function handleSave(entry: LogEntry) {
@@ -184,8 +195,8 @@ export function FocusView({
       next.add(company.id);
       return next;
     });
-    // Advance to the next un-called company from the current position. The render
-    // pass recomputes currentPos from `index` + the updated calledIds.
+    // Advance to the next unseen company from the current position. The render
+    // pass recomputes currentPos from `index` + the updated called/skipped sets.
     setIndex(currentPos + 1);
   }
 
