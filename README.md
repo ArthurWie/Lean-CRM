@@ -9,8 +9,8 @@ Alles, was du brauchst, liegt hier drin. Der alte Vault/das alte Projekt werden 
   Lead-Finding, Architektur (Tauri-Desktop, SQLite, ORM), Look, v1-Umfang. **Das ist das Hauptdokument.**
 - **`lean-crm-mockup.html`** — das klickbare visuelle Ziel (Datenbank + Fokus + CSV-Import).
   Einfach im Browser öffnen.
-- **`lead-hunter/SKILL.md`** — der Claude-Code-Skill, der Leads recherchiert und eine import-fertige
-  CSV schreibt.
+- **`.claude/skills/lead-hunter/SKILL.md`** — der Claude-Code-Skill, der Leads recherchiert und eine
+  import-fertige CSV schreibt (als `/lead-hunter` aufrufbar).
 - **`leads-beispiel.csv`** — das CSV-Importformat als Vorlage + Testdatei (enthält bewusst ein
   Duplikat und eine tote Firma, um Dedupe und Dead-Company-Guard zu zeigen).
 - **`leads-book1.csv`** — dein bestehender Excel-Bestand (39 Firmen), bereits ins CSV-Format
@@ -19,8 +19,8 @@ Alles, was du brauchst, liegt hier drin. Der alte Vault/das alte Projekt werden 
 ## Schritte im neuen Projekt
 
 1. Frisches Projekt/Repo anlegen.
-2. Inhalt dieses Ordners hineinkopieren. Den Ordner `lead-hunter/` nach `.claude/skills/` legen,
-   dann ist der Skill als `/lead-hunter` verfügbar.
+2. Inhalt dieses Ordners hineinkopieren. Der Skill liegt bereits unter
+   `.claude/skills/lead-hunter/` und ist damit als `/lead-hunter` verfügbar.
 3. `/gsd-new-project` starten und `HANDOFF-clickwise-crm.md` als Grundlage angeben.
 4. App bauen. Danach `leads-book1.csv` importieren, um mit deinen echten Firmen zu starten.
 

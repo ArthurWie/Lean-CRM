@@ -5,7 +5,7 @@
 > das neue Projekt hat den alten Vault-Kontext nicht.
 >
 > Begleitende Artefakte im selben Ordner: `lean-crm-mockup.html` (visuelles Ziel, klickbar),
-> `lead-hunter/SKILL.md` (Lead-Recherche-Skill), `leads-beispiel.csv` (Import-Format + Testdatei).
+> `.claude/skills/lead-hunter/SKILL.md` (Lead-Recherche-Skill), `leads-beispiel.csv` (Import-Format + Testdatei).
 
 ---
 
@@ -97,7 +97,7 @@ mit **Semikolon** getrennt (`office@x.at;gf@x.at`).
 ## 4. Lead-Finding (außerhalb der App)
 
 Die App stößt **selbst keine Recherche** an. Lead-Finding ist eine Claude-Session-Aufgabe über den
-Skill `lead-hunter` (siehe `lead-hunter/SKILL.md`), dessen Ausgabe eine import-fertige CSV ist.
+Skill `lead-hunter` (siehe `.claude/skills/lead-hunter/SKILL.md`), dessen Ausgabe eine import-fertige CSV ist.
 
 **CSV-Format (Skill schreibt, App importiert, exakt einhalten):**
 ```
@@ -170,6 +170,6 @@ nichts davon wird übernommen außer den reinen Firmendaten.
 ## 9. Mitgelieferte Artefakte (ins neue Projekt kopieren)
 
 - `lean-crm-mockup.html` — klickbares visuelles Ziel (Datenbank + Fokus + Import).
-- `lead-hunter/` — den Ordner nach `.claude/skills/` legen, dann als `/lead-hunter` verfügbar.
+- `.claude/skills/lead-hunter/` — der Lead-Recherche-Skill, als `/lead-hunter` verfügbar.
 - `leads-beispiel.csv` — Import-Format und Testdatei (enthält bewusst ein Duplikat + eine tote Firma).
 - Dieses Dokument als Eingabe für `/gsd-new-project`.
