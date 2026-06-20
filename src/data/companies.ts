@@ -222,6 +222,12 @@ export async function purgeExpiredCompanies(): Promise<number> {
 }
 
 export async function seedIfEmpty(): Promise<void> {
+  // D-08: no demo re-seed in the real build. The seed is dev-only convenience;
+  // in a production `tauri build` (import.meta.env.DEV false) this is a no-op so
+  // that a cleared DB ("Alle Daten löschen", import.ts:clearAllData) stays empty
+  // on the next launch instead of re-spawning the Himmelhoch/Chapter 4 fixtures.
+  if (!import.meta.env.DEV) return;
+
   const existing = await db.select().from(firmen).limit(1);
   if (existing.length) return; // idempotent: only seed an empty DB
 
