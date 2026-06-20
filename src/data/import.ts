@@ -274,3 +274,112 @@ export function classifyRows(
 
   return out;
 }
+
+// --- Impure section: the ONLY part of this file that touches SQL (DATA-02) ----
+//
+// importCsv + clearAllData are the data-layer writers. They import drizzle + the
+// five schema tables; everything above this line stays type-only (purity gate).
+
+import { db } from "../db/client";
+import {
+  firmen,
+  kontakte,
+  kontakt_mails,
+  interaktionen,
+  followups,
+} from "../db/schema";
+
+// WHY NO db.transaction() (verbatim from companies.ts:144-161; same landmine):
+// the data layer runs on drizzle's sqlite-proxy (src/db/client.ts) over
+// @tauri-apps/plugin-sql v2. drizzle's sqlite-proxy transaction() issues
+// <!-- planner-discipline-allow: begin -->
+// `begin`, each statement, and `commit` as SEPARATE proxy round-trips — every
+// <!-- planner-discipline-allow: commit -->
+// one a distinct invoke('plugin:sql|execute') IPC call. The Rust plugin serves
+// each call from an sqlx connection POOL, so the control statements and the
+// writes can each land on a DIFFERENT pooled connection. The opening control
+// statement then opens a transaction on a connection the writes never touch,
+// and the closing one runs on a connection with no active transaction → it
+// throws, the whole write rejects, the App handler swallows it, and nothing
+// persists. A single-connection mock hides this (the test DB shares one
+// handle), so the mocked tests pass while the real Tauri app silently fails.
+// <!-- planner-discipline-allow: rollback -->
+//
+// Fix: sequential awaited statements, no transaction wrapper — each is its own
+// pooled-connection round-trip and commits on its own (sqlx autocommit per
+// statement). We accept best-effort, non-atomic writes here: this is a
+// single-user local SQLite DB, the order is FK-safe, and FK enforcement is off,
+// so a partial failure cannot orphan rows in a way that breaks the app.
+
+/**
+ * Write the "neu" rows into firmen (+ kontakte + kontakt_mails) — IMPORT-07 /
+ * D-01 / D-09. Per row, SEQUENTIAL awaited inserts (NO db.transaction):
+ *  - one firmen row: status "Neu" (so deriveStatus([]) stays Neu — NO interaktionen
+ *    row is ever created), heiss false, UUID id, one shared UTC-ISO created_at/
+ *    updated_at, lessons = mergeLessons(lessons, notiz) (quelle dropped, D-01);
+ *  - if hasAnyContactField, one kontakte row (name nullable when ansprechpartner
+ *    empty, D-09);
+ *  - one kontakt_mails row per tokenizeEmails token (IMPORT-02).
+ * Reuses the addCompany / addContact insert shapes (companies.ts / contacts.ts).
+ * The caller passes ONLY rows classified "neu" — empty-name rows never reach
+ * here (D-07), so addCompany's empty-name guard is never tripped mid-loop.
+ */
+export async function importCsv(neuRows: readonly RawRow[]): Promise<void> {
+  for (const r of neuRows) {
+    const firmaId = crypto.randomUUID();
+    const ts = new Date().toISOString();
+
+    await db.insert(firmen).values({
+      id: firmaId,
+      name: r.unternehmen.trim(),
+      fn: r.fn.trim() || null,
+      branche: r.branche.trim() || null,
+      groesse: r.groesse.trim() || null,
+      website: r.website.trim() || null,
+      lessons: mergeLessons(r.lessons, r.notiz), // D-01
+      status: "Neu", // IMPORT-07 — never from the CSV; matches deriveStatus([])
+      heiss: false,
+      created_at: ts,
+      updated_at: ts,
+    });
+
+    if (hasAnyContactField(r)) {
+      const kontaktId = crypto.randomUUID();
+      await db.insert(kontakte).values({
+        id: kontaktId,
+        firma_id: firmaId,
+        name: r.ansprechpartner.trim() || null, // D-09: nullable
+        rolle: r.rolle.trim() || null,
+        telefon: r.telefon.trim() || null,
+        linkedin: r.linkedin.trim() || null,
+      });
+
+      const emails = tokenizeEmails(r.email); // IMPORT-02
+      if (emails.length > 0) {
+        await db.insert(kontakt_mails).values(
+          emails.map((email) => ({
+            id: crypto.randomUUID(),
+            kontakt_id: kontaktId,
+            email,
+          })),
+        );
+      }
+    }
+    // NO interaktionen row — keeps deriveStatus([]) → "Neu" (IMPORT-07 / D-01).
+  }
+}
+
+/**
+ * The "Alle Daten löschen" reset (D-08): hard-delete every row in the five
+ * tables in the same FK-safe order deleteCompany uses (kontakt_mails → kontakte
+ * → interaktionen → followups → firmen). SEQUENTIAL awaited deletes, NO
+ * db.transaction() (see the module note). Paired with the DEV-gated seedIfEmpty
+ * so a cleared DB stays empty on the next launch.
+ */
+export async function clearAllData(): Promise<void> {
+  await db.delete(kontakt_mails);
+  await db.delete(kontakte);
+  await db.delete(interaktionen);
+  await db.delete(followups);
+  await db.delete(firmen);
+}
