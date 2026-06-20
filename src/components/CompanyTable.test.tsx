@@ -655,6 +655,28 @@ describe("CompanyTable", () => {
       expect(screen.getByText("Behalten")).toBeTruthy();
     });
 
+    // Addition 2: deleting a company from the detail panel bubbles onDeleteCompany
+    // with the firma id and closes the panel.
+    it("confirming Löschen in the detail panel calls onDeleteCompany and closes the panel", () => {
+      const onDeleteCompany = vi.fn();
+      render(
+        <CompanyTable
+          companies={[company({ id: "1", name: "Acme GmbH", status: "Offen" })]}
+          interactionsByFirma={{ "1": [] }}
+          onDeleteCompany={onDeleteCompany}
+        />,
+      );
+      // Open the row (click the Status pill, not an editable cell).
+      fireEvent.click(screen.getByText("Offen"));
+      expect(screen.getByText("Verlauf (Notizen)")).toBeTruthy();
+      // Two-step inline confirm.
+      fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+      fireEvent.click(screen.getByRole("button", { name: "Ja, löschen" }));
+      expect(onDeleteCompany).toHaveBeenCalledWith("1");
+      // Panel closed.
+      expect(screen.queryByText("Verlauf (Notizen)")).toBeNull();
+    });
+
     // Edge case: a company with NO interactions has no newest note to override,
     // so the Notizen cell is a non-editable em-dash placeholder (no input on click).
     it("a company with no interactions shows a non-editable Notizen placeholder", () => {

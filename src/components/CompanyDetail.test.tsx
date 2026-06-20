@@ -95,4 +95,48 @@ describe("CompanyDetail", () => {
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(onSave.mock.calls[0][0].outcome).toBe("Gesprochen");
   });
+
+  // Addition 2: inline-confirm delete.
+  it("does not render the Löschen action when onDelete is not provided", () => {
+    render(<CompanyDetail contacts={[]} interactions={[]} onSave={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "Löschen" })).toBeNull();
+  });
+
+  it("Löschen requires a second confirm click before firing onDelete (accidental-click guard)", () => {
+    const onDelete = vi.fn();
+    render(
+      <CompanyDetail
+        contacts={[]}
+        interactions={[]}
+        onSave={vi.fn()}
+        onDelete={onDelete}
+      />,
+    );
+    // First click only reveals the inline confirm — it must NOT delete.
+    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(screen.getByText("Wirklich löschen?")).toBeTruthy();
+
+    // Confirming fires onDelete exactly once.
+    fireEvent.click(screen.getByRole("button", { name: "Ja, löschen" }));
+    expect(onDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it("Abbrechen dismisses the delete confirm without firing onDelete", () => {
+    const onDelete = vi.fn();
+    render(
+      <CompanyDetail
+        contacts={[]}
+        interactions={[]}
+        onSave={vi.fn()}
+        onDelete={onDelete}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    fireEvent.click(screen.getByRole("button", { name: "Abbrechen" }));
+    expect(onDelete).not.toHaveBeenCalled();
+    // Back to the unconfirmed trigger.
+    expect(screen.getByRole("button", { name: "Löschen" })).toBeTruthy();
+    expect(screen.queryByText("Wirklich löschen?")).toBeNull();
+  });
 });

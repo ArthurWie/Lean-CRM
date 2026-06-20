@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import {
   addCompany,
+  deleteCompany,
   listCompanies,
   listContacts,
   markViewed,
@@ -122,6 +123,19 @@ function App() {
     }
   }
 
+  // Addition 2: hard-delete a company (cascade) after the inline confirm, then
+  // reload the list. CompanyTable already closed the detail panel for the deleted
+  // row, and a delete failure leaves the panel closed but the row present (refresh
+  // re-renders the still-existing company), surfacing the problem.
+  async function handleDeleteCompany(firmaId: string) {
+    try {
+      await deleteCompany(firmaId);
+      setCompanies(await listCompanies());
+    } catch (e) {
+      console.error("Failed to delete company:", e);
+    }
+  }
+
   // D-07: commit an inline edit of a company text field, then reload so the row
   // reflects the persisted value.
   async function handleEditCell(
@@ -185,6 +199,7 @@ function App() {
             onAddCompany={handleAddCompany}
             onEditCell={handleEditCell}
             onEditNote={handleEditNote}
+            onDeleteCompany={handleDeleteCompany}
           />
         )}
       </main>

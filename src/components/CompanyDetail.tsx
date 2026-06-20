@@ -7,6 +7,7 @@
 // markViewed-on-open behaviour. Structure + German copy from lean-crm-mockup.html
 // lines 192-215; colors from direction B (CompanyTable.css :root). 🔥 lives only
 // inside the embedded LogForm.
+import { useState } from "react";
 import type { Contact } from "../data/companies";
 import type { Interaction } from "../data/interactions";
 import { LogForm, type LogEntry } from "./LogForm";
@@ -19,9 +20,16 @@ type Props = {
   contacts: Contact[];
   interactions: Interaction[];
   onSave: (entry: LogEntry) => void;
+  // Addition 2: hard-delete this company (cascade). Optional so existing tests /
+  // callers that don't wire it simply hide the Löschen action.
+  onDelete?: () => void;
 };
 
-export function CompanyDetail({ contacts, interactions, onSave }: Props) {
+export function CompanyDetail({ contacts, interactions, onSave, onDelete }: Props) {
+  // Addition 2: the "Löschen" action uses a two-step INLINE confirm (no modal),
+  // mirroring the D-08 contact-removal pattern: click Löschen → "Wirklich löschen?
+  // Ja / Abbrechen". The confirm step is the sole guard against an accidental click.
+  const [confirming, setConfirming] = useState(false);
   // Newest-first (datum desc). listInteractions already sorts this way, but the
   // panel re-sorts defensively so it never depends on caller order.
   const history = [...interactions].sort((a, b) =>
@@ -63,6 +71,41 @@ export function CompanyDetail({ contacts, interactions, onSave }: Props) {
                 {i.notiz || EMPTY}
               </div>
             ))}
+          </div>
+        )}
+
+        {onDelete && (
+          <div className="danger-zone">
+            {confirming ? (
+              <span className="confirm-del">
+                Wirklich löschen?{" "}
+                <button
+                  type="button"
+                  className="del-yes"
+                  onClick={() => {
+                    setConfirming(false);
+                    onDelete();
+                  }}
+                >
+                  Ja, löschen
+                </button>
+                <button
+                  type="button"
+                  className="del-cancel"
+                  onClick={() => setConfirming(false)}
+                >
+                  Abbrechen
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="del-trigger"
+                onClick={() => setConfirming(true)}
+              >
+                Löschen
+              </button>
+            )}
           </div>
         )}
       </div>

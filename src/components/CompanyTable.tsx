@@ -361,6 +361,9 @@ type Props = {
   // Addition 1 (D-07 amended): called when the Notizen cell edit commits. App
   // rewrites the newest interaction's note (interactionId) + refreshes.
   onEditNote?: (firmaId: string, interactionId: string, text: string) => void;
+  // Addition 2: called when the inline "Löschen" confirm is accepted in the detail
+  // panel. App hard-deletes the company (cascade) + refreshes the list.
+  onDeleteCompany?: (firmaId: string) => void;
   // Test-only seam: lets a test render with dead rows already visible.
   showDeadInitially?: boolean;
 };
@@ -374,6 +377,7 @@ export function CompanyTable({
   onAddCompany,
   onEditCell,
   onEditNote,
+  onDeleteCompany,
   showDeadInitially = false,
 }: Props) {
   const [showDead, setShowDead] = useState(showDeadInitially);
@@ -684,6 +688,16 @@ export function CompanyTable({
                           contacts={contacts}
                           interactions={interactions}
                           onSave={(entry) => onSave?.(c.id, entry)}
+                          onDelete={
+                            onDeleteCompany
+                              ? () => {
+                                  // Close the panel (the row vanishes after the
+                                  // parent refresh) and bubble the delete up.
+                                  setExpandedId(null);
+                                  onDeleteCompany(c.id);
+                                }
+                              : undefined
+                          }
                         />
                       </td>
                     </tr>

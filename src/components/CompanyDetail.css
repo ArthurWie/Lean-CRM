@@ -109,3 +109,49 @@
   font-size: 12.5px;
   color: var(--faint);
 }
+
+/* Addition 2: Löschen action + inline confirm. Corporate / Excel style — TEXT
+   buttons, sharp 2px corners, muted navy (no playful color). The destructive
+   "Ja, löschen" gets a restrained muted-danger tint so it reads as the dangerous
+   choice without shouting. The inline confirm is the sole accidental-click guard. */
+.danger-zone {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+.del-trigger,
+.del-yes,
+.del-cancel {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 2px; /* sharp corners (corporate look) */
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--soft);
+  cursor: pointer;
+}
+.del-trigger:hover {
+  color: var(--ink);
+  border-color: var(--faint);
+}
+.confirm-del {
+  font-size: 12px;
+  color: var(--soft);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.del-yes {
+  color: #b3261e; /* muted danger — restrained, not playful */
+  border-color: #e3b4b0;
+  background: #fcf3f2;
+}
+.del-yes:hover {
+  background: #f8e7e5;
+}
+.del-cancel:hover {
+  color: var(--ink);
+  border-color: var(--faint);
+}
