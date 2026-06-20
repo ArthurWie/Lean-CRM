@@ -52,7 +52,7 @@ Architecture not yet mapped. Follow existing patterns found in the codebase.
 
 ## Project Skills
 
-No project skills found. Add skills to any of: `.claude/skills/`, `.agents/skills/`, `.cursor/skills/`, `.github/skills/`, or `.codex/skills/` with a `SKILL.md` index file.
+- **lead-hunter** (`lead-hunter/SKILL.md`) — The lead-finding half of the workflow. Given one niche + count (+ optional region, default Austria/Vienna), it sources real B2B companies, runs an Austrian identity check (Impressum → Firmenbuch FN, insolvency = hard exclude), de-dupes against known CRM companies, and writes an **import-ready CSV** in the frozen 13-column lead-hunter schema. That CSV is the only interface to the app's import (`src/data/import.ts`).
 <!-- GSD:skills-end -->
 
 <!-- GSD:workflow-start source:GSD defaults -->

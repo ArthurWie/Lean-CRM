@@ -33,9 +33,14 @@ Fehlt etwas, frag in einem Satz nach. Halte **eine Nische pro Lauf** (ein Batch 
 1. **Dedupe-Liste laden (zuerst).** Wenn der Nutzer eine Export-Datei der bekannten CRM-Firmen nennt
    (z.B. `crm-known.csv` mit Spalten `unternehmen, fn, website, status`), lies sie zur Laufzeit. Halte
    daraus eine Sperrliste und gleiche jeden Kandidaten dagegen ab über: **FN-Nummer**, **Domain** und
-   **normalisierten Firmennamen** (klein, ohne Rechtsform-Suffix wie GmbH / Ges.m.b.H. / & Co KG). Ein
-   Treffer auf irgendeines davon = bekannt. Firmen mit `status` = `tot`/`geparkt`/"nicht kontaktieren"
-   **niemals** wieder aufnehmen. Gibt es keine Datei, weiter, dann macht die App das Dedupe beim Import.
+   **normalisierten Firmennamen** (klein, ohne Rechtsform-Suffix wie GmbH / Ges.m.b.H. / & Co KG). Das
+   sind exakt die vier Felder (`unternehmen`, `fn`, `website`, `status`), über die auch die App beim
+   Import dedupliziert (Kaskade **FN → Domain → Name**, erster Treffer gewinnt). Ein Treffer auf
+   irgendeines davon = bekannt. Firmen mit `status` = **`Tot`** (so geschrieben, kapitalisiert) sind
+   „nicht kontaktieren": **niemals** wieder aufnehmen — die App meldet sie beim Import als
+   `nicht-kontaktieren` und überspringt sie. Jede andere bereits bekannte Firma (aktiver Status oder
+   `Geparkt`) einfach als Dublette überspringen. Gibt es keine Datei, weiter, dann macht die App das
+   Dedupe beim Import.
    **Wichtig: diese Liste niemals in den Skill schreiben.** Der Skill bleibt statisch und kurz; die
    bekannten Firmen kommen ausschließlich aus der externen Datei zur Laufzeit.
 2. **Sourcing.** Über WebSearch echte Firmen der Nische in der Region finden (Branchenverzeichnisse,
@@ -62,8 +67,11 @@ Fehlt etwas, frag in einem Satz nach. Halte **eine Nische pro Lauf** (ein Batch 
      trennen** (kein Komma), z.B. `office@x.at;gf@x.at`. Sonst leer lassen.
    - `linkedin` — Profil-Pfad der Person, z.B. "in/max-mustermann", oder leer.
    - `lessons` — bleibendes Wissen/Argument; bei frischen Leads i.d.R. leer.
-   - `quelle` — wo gefunden (kurz, z.B. "Herold", "PRVA-Mitgliederliste").
-   - `notiz` — optional ein kurzer Hinweis (z.B. "GF auch IT-Verantwortlicher"), sonst leer.
+   - `quelle` — wo gefunden (kurz, z.B. "Herold", "PRVA-Mitgliederliste"). **Wird beim Import nicht
+     gespeichert** (reine Provenienz für CSV/Bericht) — trotzdem ausfüllen, hilft beim Nachvollziehen.
+   - `notiz` — optional ein kurzer Hinweis (z.B. "GF auch IT-Verantwortlicher"), sonst leer. **Wird beim
+     Import mit `lessons` zur Firmen-Notiz zusammengeführt** (mit „ — " verbunden) — nur befüllen, wenn
+     der Hinweis im CRM an der Firma stehen soll.
 5. **CSV schreiben** (siehe Format) und Pfad melden. Kurz zusammenfassen: wie viele Leads, wie viele
    mit Telefon, wie viele mit Email/LinkedIn, wie viele wegen Insolvenz oder Sperrliste ausgelassen,
    was fehlt.
