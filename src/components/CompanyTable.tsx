@@ -407,6 +407,9 @@ type Props = {
     kontaktId: string,
     emails: string[],
   ) => void;
+  // D-11: opens Focus mode. The toolbar "Fokus" button is the canonical launcher;
+  // App snapshots getFocusSnapshot() once and mounts FocusView.
+  onOpenFocus?: () => void;
   // Test-only seam: lets a test render with dead rows already visible.
   showDeadInitially?: boolean;
   // Test-only seam: lets a test render the "Zuletzt gelöscht" trash view directly.
@@ -430,6 +433,7 @@ export function CompanyTable({
   onUpdateContact,
   onDeleteContact,
   onSetContactEmails,
+  onOpenFocus,
   showDeadInitially = false,
   trashViewInitially = false,
 }: Props) {
@@ -570,15 +574,24 @@ export function CompanyTable({
         <button className="impbtn" type="button" disabled>
           CSV importieren
         </button>
-        {/* Add is hidden in the trash view — it is read-only except restore/purge. */}
+        {/* Add + Fokus are hidden in the trash view — it is read-only except restore/purge. */}
         {!trashView && (
-          <button
-            className="addbtn"
-            type="button"
-            onClick={() => setAddDraft((d) => d ?? { ...EMPTY_DRAFT })}
-          >
-            + Neue Firma
-          </button>
+          <>
+            <button
+              className="addbtn"
+              type="button"
+              onClick={() => onOpenFocus?.()}
+            >
+              Fokus
+            </button>
+            <button
+              className="addbtn"
+              type="button"
+              onClick={() => setAddDraft((d) => d ?? { ...EMPTY_DRAFT })}
+            >
+              + Neue Firma
+            </button>
+          </>
         )}
       </div>
 
