@@ -27,6 +27,7 @@ pub fn run() {
     ];
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
         .plugin(
             SqlBuilder::default()
                 .add_migrations(DB_URL, migrations)

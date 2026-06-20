@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Least-privilege capability set for Phase 1: SQL access only (no shell/fs scopes). Mitigates T-01-EOP. sql:default grants load/select/close; allow-execute is required for INSERT/UPDATE/DELETE (seeding + writes).",
+  "description": "Least-privilege capability set: SQL access + OS-shell URL open (no shell/process or fs scopes). Mitigates T-01-EOP. sql:default grants load/select/close; allow-execute is required for INSERT/UPDATE/DELETE (seeding + writes). opener:default grants only URL-open (tel:/mailto:/http/https) to the OS default handler — NOT tauri-plugin-shell's broad process-spawn scope.",
   "windows": ["main"],
-  "permissions": ["core:default", "sql:default", "sql:allow-execute"]
+  "permissions": ["core:default", "sql:default", "sql:allow-execute", "opener:default"]
 }
