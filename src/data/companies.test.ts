@@ -73,6 +73,11 @@ const {
   addCompany,
   updateCompanyField,
   deleteCompany,
+  softDeleteCompany,
+  restoreCompany,
+  listDeletedCompanies,
+  purgeExpiredCompanies,
+  TRASH_RETENTION_DAYS,
 } = await import("./companies");
 const { db } = await import("../db/client");
 const { firmen, kontakte, kontakt_mails, interaktionen, followups } = await import(
@@ -393,6 +398,132 @@ describe("companies data layer", () => {
   // delete silently fails in the running app (the single-connection test mock hid
   // it). This test asserts NO begin/commit reach the execute path and the deletes
   // fire bare in FK-safe order — it fails if anyone reintroduces a transaction.
+  // --- "Zuletzt gelöscht": soft-delete + restore + 7-day auto-purge (Part B) ---
+
+  // Helper: directly set a firma's deleted_at to N days before now (bypasses the
+  // data layer so we can age a trash row past the retention boundary).
+  async function setDeletedDaysAgo(firmaId: string, days: number): Promise<void> {
+    const ts = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    await db.update(firmen).set({ deleted_at: ts }).where(eq(firmen.id, firmaId));
+  }
+
+  it("TRASH_RETENTION_DAYS is 7", () => {
+    expect(TRASH_RETENTION_DAYS).toBe(7);
+  });
+
+  it("softDeleteCompany sets deleted_at and removes the firma from listCompanies", async () => {
+    const id = await addCompany({ name: "Papierkorb GmbH" });
+    expect((await listCompanies()).find((c) => c.id === id)).toBeDefined();
+
+    await softDeleteCompany(id);
+
+    // Gone from the active list...
+    expect((await listCompanies()).find((c) => c.id === id)).toBeUndefined();
+    // ...but the row still exists with a UTC-ISO deleted_at.
+    const [row] = await db.select().from(firmen).where(eq(firmen.id, id));
+    expect(row).toBeDefined();
+    expect(row.deleted_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it("listDeletedCompanies returns only soft-deleted rows, with deleted_at", async () => {
+    const active = await addCompany({ name: "Aktiv GmbH" });
+    const trashed = await addCompany({ name: "Müll GmbH" });
+    await softDeleteCompany(trashed);
+
+    const deleted = await listDeletedCompanies();
+    expect(deleted.map((c) => c.id)).toEqual([trashed]);
+    expect(deleted[0].deleted_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    // The active one is absent from the trash list.
+    expect(deleted.find((c) => c.id === active)).toBeUndefined();
+  });
+
+  it("restoreCompany clears deleted_at, returning the firma to listCompanies", async () => {
+    const id = await addCompany({ name: "Zurück GmbH" });
+    await softDeleteCompany(id);
+    expect((await listCompanies()).find((c) => c.id === id)).toBeUndefined();
+
+    await restoreCompany(id);
+
+    expect((await listCompanies()).find((c) => c.id === id)).toBeDefined();
+    expect(await listDeletedCompanies()).toHaveLength(0);
+    const [row] = await db.select().from(firmen).where(eq(firmen.id, id));
+    expect(row.deleted_at).toBeNull();
+  });
+
+  it("purgeExpiredCompanies hard-deletes rows older than 7 days and returns the count", async () => {
+    const old = await addCompany({ name: "Alt GmbH" });
+    await softDeleteCompany(old);
+    await setDeletedDaysAgo(old, 8); // past retention
+
+    const fresh = await addCompany({ name: "Frisch GmbH" });
+    await softDeleteCompany(fresh); // just now → kept
+
+    const purged = await purgeExpiredCompanies();
+
+    expect(purged).toBe(1);
+    // The expired one is hard-deleted (gone entirely).
+    expect(
+      await db.select().from(firmen).where(eq(firmen.id, old)),
+    ).toHaveLength(0);
+    // The fresh one survives in the trash.
+    expect((await listDeletedCompanies()).map((c) => c.id)).toEqual([fresh]);
+  });
+
+  it("purgeExpiredCompanies keeps a 6-day-old row and purges an 8-day-old row (7-day boundary)", async () => {
+    const sixDays = await addCompany({ name: "Sechs GmbH" });
+    await softDeleteCompany(sixDays);
+    await setDeletedDaysAgo(sixDays, 6); // within retention → kept
+
+    const eightDays = await addCompany({ name: "Acht GmbH" });
+    await softDeleteCompany(eightDays);
+    await setDeletedDaysAgo(eightDays, 8); // past retention → purged
+
+    const purged = await purgeExpiredCompanies();
+
+    expect(purged).toBe(1);
+    expect(await db.select().from(firmen).where(eq(firmen.id, eightDays))).toHaveLength(0);
+    expect((await listDeletedCompanies()).map((c) => c.id)).toEqual([sixDays]);
+  });
+
+  it("purgeExpiredCompanies cascades dependents of an expired company (uses deleteCompany)", async () => {
+    const id = await addCompany({ name: "Mit Anhang GmbH" });
+    const kontaktId = crypto.randomUUID();
+    await db.insert(kontakte).values({
+      id: kontaktId,
+      firma_id: id,
+      name: "Anhang Kontakt",
+      relevant: true,
+    });
+    await db.insert(kontakt_mails).values({
+      id: crypto.randomUUID(),
+      kontakt_id: kontaktId,
+      email: "x@anhang.at",
+    });
+    await db.insert(interaktionen).values({
+      id: crypto.randomUUID(),
+      firma_id: id,
+      datum: new Date().toISOString(),
+      kanal: "Telefon",
+      outcome: "Gesprochen",
+      notiz: "x",
+      bearbeiter: "Arthur",
+    });
+    await softDeleteCompany(id);
+    await setDeletedDaysAgo(id, 10);
+
+    await purgeExpiredCompanies();
+
+    // Firma and every dependent are gone (full cascade, not just the firma row).
+    expect(await db.select().from(firmen).where(eq(firmen.id, id))).toHaveLength(0);
+    expect(await db.select().from(kontakte).where(eq(kontakte.firma_id, id))).toHaveLength(0);
+    expect(
+      await db.select().from(kontakt_mails).where(eq(kontakt_mails.kontakt_id, kontaktId)),
+    ).toHaveLength(0);
+    expect(
+      await db.select().from(interaktionen).where(eq(interaktionen.firma_id, id)),
+    ).toHaveLength(0);
+  });
+
   it("deleteCompany issues the dependent deletes in FK-safe order, with no begin/commit", async () => {
     const firmaId = await addCompany({ name: "Reihenfolge GmbH" });
     const kontaktId = crypto.randomUUID();
