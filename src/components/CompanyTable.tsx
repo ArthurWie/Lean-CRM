@@ -381,7 +381,7 @@ export function CompanyTable({
                 </td>
                 <td className="next dim">{EMPTY}</td>
                 <td className="notiz dim">{EMPTY}</td>
-                <td className="lessons addrow-actions">
+                <td className="lessons">
                   <input
                     className="cell-input"
                     placeholder="Lessons"
@@ -392,6 +392,15 @@ export function CompanyTable({
                       )
                     }
                   />
+                </td>
+              </tr>
+            )}
+            {addDraft && (
+              // Speichern/Abbrechen live in a dedicated full-width action row
+              // (colSpan = all 9 columns, like the detail row) so the buttons are
+              // never clipped by an individual column's width.
+              <tr className="r-main r-add r-add-actions">
+                <td className="addrow-actions" colSpan={9}>
                   <button
                     type="button"
                     className="save"

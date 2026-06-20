@@ -378,6 +378,27 @@ describe("CompanyTable", () => {
       expect(within(firstRow).getByText("Neu").className).toContain("neu");
     });
 
+    it("the inline-add row aligns to the 9-column grid and Speichern lives in its own full-width action row (regression: clipped Speichern)", () => {
+      render(<CompanyTable companies={[company({ id: "1", name: "Acme GmbH", status: "Offen" })]} />);
+      fireEvent.click(screen.getByRole("button", { name: "+ Neue Firma" }));
+
+      // The draft data row mirrors the header exactly: 9 cells, one per column.
+      const draftRow = screen
+        .getByPlaceholderText("Unternehmen")
+        .closest("tr") as HTMLElement;
+      expect(draftRow.querySelectorAll("td")).toHaveLength(HEADERS.length);
+
+      // Speichern is NOT inside the draft data row (where it would be clipped by a
+      // single column); it lives in a dedicated full-width action row spanning all
+      // columns, guaranteeing it is fully visible.
+      expect(within(draftRow).queryByRole("button", { name: "Speichern" })).toBeNull();
+      const saveBtn = screen.getByRole("button", { name: "Speichern" });
+      const actionCell = saveBtn.closest("td") as HTMLElement;
+      expect(actionCell.getAttribute("colspan")).toBe(String(HEADERS.length));
+      // Abbrechen sits in the same action cell.
+      expect(within(actionCell).getByText("Abbrechen")).toBeTruthy();
+    });
+
     it("Save is blocked while Unternehmen is empty and does not call onAddCompany", () => {
       const onAddCompany = vi.fn();
       render(
