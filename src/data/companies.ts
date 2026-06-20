@@ -131,30 +131,45 @@ export async function updateCompanyField(
 // Addition 2: hard-delete a company and every row that depends on it, for fixing
 // a mistaken add. The schema's foreign keys are ON DELETE NO ACTION and SQLite's
 // FK enforcement is off in this app, so there is no DB-level cascade — we delete
-// the dependents explicitly, in FK-safe order, inside ONE transaction (mirrors
-// interactions.ts' transaction discipline, CR-01): kontakt_mails (→ kontakte) →
-// kontakte → interaktionen → followups → firmen. Either everything for this firma
-// goes or nothing does. A firma with no dependents simply deletes the firma row.
+// the dependents explicitly, in FK-safe order: kontakt_mails (→ kontakte) →
+// kontakte → interaktionen → followups → firmen.
+//
+// WHY NO db.transaction(): the data layer runs on drizzle's sqlite-proxy
+// (src/db/client.ts) over @tauri-apps/plugin-sql v2. drizzle's sqlite-proxy
+// transaction() issues `begin`, each statement, and `commit` as SEPARATE proxy
+// round-trips — every one a distinct invoke('plugin:sql|execute') IPC call. The
+// Rust plugin serves each call from an sqlx connection POOL, so `begin`, the
+// deletes, and `commit` can each land on a DIFFERENT pooled connection. The
+// `begin` then opens a transaction on a connection the deletes never touch, and
+// `commit` runs on a connection with no active transaction → it throws, the whole
+// delete rejects, App.handleDeleteCompany swallows it, and the row stays. A
+// single-connection mock hides this (the test DB shares one handle), so the
+// mocked tests passed while the real Tauri app silently failed to delete.
+//
+// Fix: sequential awaited statements, no transaction wrapper — each is its own
+// pooled-connection round-trip and commits on its own (sqlx autocommit per
+// statement). We accept best-effort, non-atomic writes here: this is a single-user
+// local SQLite DB, the order is FK-safe, and FK enforcement is off, so a partial
+// failure cannot orphan rows in a way that breaks the app. (interactions.ts has
+// the same db.transaction() pattern and the same latent bug — fixed separately.)
 export async function deleteCompany(firmaId: string): Promise<void> {
-  await db.transaction(async (tx) => {
-    // kontakt_mails reference kontakte, not firmen — resolve this firma's contact
-    // ids first, then delete their mail rows before the contacts themselves.
-    const contacts = await tx
-      .select({ id: kontakte.id })
-      .from(kontakte)
-      .where(eq(kontakte.firma_id, firmaId));
-    const contactIds = contacts.map((k) => k.id);
-    if (contactIds.length > 0) {
-      await tx
-        .delete(kontakt_mails)
-        .where(inArray(kontakt_mails.kontakt_id, contactIds));
-    }
+  // kontakt_mails reference kontakte, not firmen — resolve this firma's contact
+  // ids first, then delete their mail rows before the contacts themselves.
+  const contacts = await db
+    .select({ id: kontakte.id })
+    .from(kontakte)
+    .where(eq(kontakte.firma_id, firmaId));
+  const contactIds = contacts.map((k) => k.id);
+  if (contactIds.length > 0) {
+    await db
+      .delete(kontakt_mails)
+      .where(inArray(kontakt_mails.kontakt_id, contactIds));
+  }
 
-    await tx.delete(kontakte).where(eq(kontakte.firma_id, firmaId));
-    await tx.delete(interaktionen).where(eq(interaktionen.firma_id, firmaId));
-    await tx.delete(followups).where(eq(followups.firma_id, firmaId));
-    await tx.delete(firmen).where(eq(firmen.id, firmaId));
-  });
+  await db.delete(kontakte).where(eq(kontakte.firma_id, firmaId));
+  await db.delete(interaktionen).where(eq(interaktionen.firma_id, firmaId));
+  await db.delete(followups).where(eq(followups.firma_id, firmaId));
+  await db.delete(firmen).where(eq(firmen.id, firmaId));
 }
 
 export async function seedIfEmpty(): Promise<void> {

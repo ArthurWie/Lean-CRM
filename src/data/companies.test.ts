@@ -38,6 +38,12 @@ function applyMigration(dbInstance: DatabaseSyncType) {
   }
 }
 
+// A hoisted recorder of every non-SELECT statement that reaches the plugin's
+// execute() — i.e. the real INSERT/UPDATE/DELETE (and any begin/commit) round-
+// trips the proxy makes. Tests read this to assert what SQL was actually issued,
+// independent of object identity across the vi.mock module boundary.
+const { executedSql } = vi.hoisted(() => ({ executedSql: [] as string[] }));
+
 vi.mock("@tauri-apps/plugin-sql", () => {
   const fakeDb = {
     async select(query: string, params: unknown[] = []) {
@@ -46,6 +52,7 @@ vi.mock("@tauri-apps/plugin-sql", () => {
       return rows.map((r) => ({ ...r }));
     },
     async execute(query: string, params: unknown[] = []) {
+      executedSql.push(query);
       const info = sqlite.prepare(query).run(...(params as any[]));
       return { rowsAffected: Number(info.changes), lastInsertId: 0 };
     },
@@ -376,5 +383,56 @@ describe("companies data layer", () => {
     const id = await addCompany({ name: "Allein GmbH" });
     await expect(deleteCompany(id)).resolves.toBeUndefined();
     expect((await listCompanies()).find((c) => c.id === id)).toBeUndefined();
+  });
+
+  // REGRESSION (runtime delete bug): deleteCompany must NOT wrap its writes in
+  // db.transaction(). The sqlite-proxy issues begin/statements/commit as separate
+  // proxy round-trips, and the real Tauri plugin serves each from an sqlx pool, so
+  // begin/deletes/commit can land on different connections → commit throws → the
+  // delete silently fails in the running app (the single-connection test mock hid
+  // it). This test asserts NO begin/commit reach the execute path and the deletes
+  // fire bare in FK-safe order — it fails if anyone reintroduces a transaction.
+  it("deleteCompany issues the dependent deletes in FK-safe order, with no begin/commit", async () => {
+    const firmaId = await addCompany({ name: "Reihenfolge GmbH" });
+    const kontaktId = crypto.randomUUID();
+    await db.insert(kontakte).values({
+      id: kontaktId,
+      firma_id: firmaId,
+      name: "Mit Mail",
+      relevant: true,
+    });
+    await db.insert(kontakt_mails).values({
+      id: crypto.randomUUID(),
+      kontakt_id: kontaktId,
+      email: "order@reihenfolge.at",
+    });
+
+    // Capture exactly the statements that hit the plugin's execute() path
+    // (INSERT/UPDATE/DELETE + any begin/commit). SELECTs go through .select() and
+    // are not recorded here, so what remains for a delete is the delete chain.
+    executedSql.length = 0;
+    await deleteCompany(firmaId);
+
+    const tables = executedSql
+      .map((sql) => /delete from "(\w+)"/i.exec(sql)?.[1])
+      .filter(Boolean) as string[];
+
+    // No transaction control statements leaked into the execute path — proves the
+    // delete is NOT wrapped in db.transaction() (the begin/commit that the pooled
+    // Tauri runtime cannot honour across connections).
+    const ctrl = executedSql.filter((sql) =>
+      /^\s*(begin|commit|rollback)\b/i.test(sql),
+    );
+    expect(ctrl).toHaveLength(0);
+
+    // FK-safe order: mails before contacts, contacts before interactions/followups,
+    // firma last.
+    expect(tables).toEqual([
+      "kontakt_mails",
+      "kontakte",
+      "interaktionen",
+      "followups",
+      "firmen",
+    ]);
   });
 });
