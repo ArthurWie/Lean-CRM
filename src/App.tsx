@@ -16,6 +16,7 @@ import {
 import {
   listInteractions,
   logInteraction,
+  updateInteractionNote,
   type Interaction,
 } from "./data/interactions";
 import { CompanyTable } from "./components/CompanyTable";
@@ -107,6 +108,20 @@ function App() {
     }
   }
 
+  // Addition 1 (D-07 amended): commit an inline edit of the Notizen cell. The cell
+  // shows the NEWEST interaction's note, so the edit rewrites THAT interaction's
+  // notiz (not a parallel company field). Reload the firma's interactions AND the
+  // companies list so the derived Notizen column reflects the new text.
+  async function handleEditNote(firmaId: string, interactionId: string, text: string) {
+    try {
+      await updateInteractionNote(interactionId, text);
+      await loadFirma(firmaId);
+      setCompanies(await listCompanies());
+    } catch (e) {
+      console.error("Failed to edit interaction note:", e);
+    }
+  }
+
   // D-07: commit an inline edit of a company text field, then reload so the row
   // reflects the persisted value.
   async function handleEditCell(
@@ -169,6 +184,7 @@ function App() {
             onSave={handleSave}
             onAddCompany={handleAddCompany}
             onEditCell={handleEditCell}
+            onEditNote={handleEditNote}
           />
         )}
       </main>

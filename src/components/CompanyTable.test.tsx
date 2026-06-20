@@ -588,6 +588,92 @@ describe("CompanyTable", () => {
       fireEvent.click(screen.getByText("IT"));
       expect(screen.queryByText("Verlauf (Notizen)")).toBeNull(); // still closed
     });
+
+    // Addition 1 (D-07 amended): the Notizen cell is inline-editable and rewrites
+    // the NEWEST interaction's note via onEditNote(firmaId, interactionId, text).
+    it("committing a Notizen edit calls onEditNote with the newest interaction's id", () => {
+      const onEditNote = vi.fn();
+      render(
+        <CompanyTable
+          companies={[company({ id: "1", name: "Acme GmbH", status: "Offen" })]}
+          interactionsByFirma={{
+            "1": [
+              interaction({ id: "i1", firma_id: "1", datum: "2026-06-01T00:00:00Z", notiz: "Alt" }),
+            ],
+          }}
+          onEditNote={onEditNote}
+        />,
+      );
+      fireEvent.click(screen.getByText("Alt"));
+      const input = screen.getByDisplayValue("Alt");
+      fireEvent.change(input, { target: { value: "Neu notiert" } });
+      fireEvent.keyDown(input, { key: "Enter" });
+      expect(onEditNote).toHaveBeenCalledWith("1", "i1", "Neu notiert");
+    });
+
+    it("edits the NEWEST interaction's note when several exist", () => {
+      const onEditNote = vi.fn();
+      render(
+        <CompanyTable
+          companies={[company({ id: "1", name: "Acme GmbH", status: "Offen" })]}
+          interactionsByFirma={{
+            "1": [
+              interaction({ id: "old", firma_id: "1", datum: "2026-05-01T00:00:00Z", notiz: "Älter" }),
+              interaction({ id: "new", firma_id: "1", datum: "2026-06-10T00:00:00Z", notiz: "Neueste" }),
+            ],
+          }}
+          onEditNote={onEditNote}
+        />,
+      );
+      // The Notizen cell shows the newest note ("Neueste"), not "Älter".
+      fireEvent.click(screen.getByText("Neueste"));
+      const input = screen.getByDisplayValue("Neueste");
+      fireEvent.change(input, { target: { value: "Korrigiert" } });
+      fireEvent.keyDown(input, { key: "Enter" });
+      expect(onEditNote).toHaveBeenCalledWith("1", "new", "Korrigiert");
+    });
+
+    it("Escape cancels a Notizen edit without calling onEditNote", () => {
+      const onEditNote = vi.fn();
+      render(
+        <CompanyTable
+          companies={[company({ id: "1", name: "Acme GmbH", status: "Offen" })]}
+          interactionsByFirma={{
+            "1": [
+              interaction({ id: "i1", firma_id: "1", datum: "2026-06-01T00:00:00Z", notiz: "Behalten" }),
+            ],
+          }}
+          onEditNote={onEditNote}
+        />,
+      );
+      fireEvent.click(screen.getByText("Behalten"));
+      const input = screen.getByDisplayValue("Behalten");
+      fireEvent.change(input, { target: { value: "verworfen" } });
+      fireEvent.keyDown(input, { key: "Escape" });
+      fireEvent.blur(input); // trailing unmount blur must not commit
+      expect(onEditNote).not.toHaveBeenCalled();
+      expect(screen.getByText("Behalten")).toBeTruthy();
+    });
+
+    // Edge case: a company with NO interactions has no newest note to override,
+    // so the Notizen cell is a non-editable em-dash placeholder (no input on click).
+    it("a company with no interactions shows a non-editable Notizen placeholder", () => {
+      const onEditNote = vi.fn();
+      render(
+        <CompanyTable
+          companies={[company({ id: "1", name: "Neu GmbH", status: "Neu" })]}
+          interactionsByFirma={{ "1": [] }}
+          onEditNote={onEditNote}
+        />,
+      );
+      // Clicking the placeholder toggles the row detail (no editor appears).
+      const notizCell = document.querySelector("td.notiz") as HTMLElement;
+      expect(notizCell).toBeTruthy();
+      expect(notizCell.classList.contains("editable")).toBe(false);
+      fireEvent.click(notizCell);
+      expect(screen.queryByDisplayValue("—")).toBeNull();
+      expect(onEditNote).not.toHaveBeenCalled();
+    });
   });
 
   it("renders 🔥 companies above non-🔥 companies, then alphabetical (DB-04, D-12)", () => {

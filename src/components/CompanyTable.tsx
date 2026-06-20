@@ -40,8 +40,11 @@ const PILL_VARIANT: Record<Status, string> = {
 
 const EMPTY = "—"; // em dash for empty cells
 
-// D-07: the company text fields that are inline-editable on any row. Notizen /
-// Nächster Schritt / Status / Kontakt are derived/action cells and stay read-only.
+// D-07: the company text fields that are inline-editable on any row. Nächster
+// Schritt / Status / Kontakt are derived/action cells and stay read-only.
+// Notizen is ALSO inline-editable (Addition 1, D-07 amended) but it is NOT a
+// company field — it edits the newest interaction's note via onEditNote, so it
+// is handled separately (NotizCell) and is intentionally absent from this union.
 type EditableField = "name" | "branche" | "groesse" | "website" | "fn" | "lessons";
 
 // A brand-new company being entered via "+ Neue Firma" (held outside the sorted
@@ -239,6 +242,97 @@ function NameCell({
   );
 }
 
+// The Notizen cell (.notiz) — shows the newest interaction's note (channel + date
+// header, then the note text) and is inline-editable (Addition 1, D-07 amended).
+// Editing rewrites ONLY the note text; the channel/date header (derived from the
+// interaction) is preserved as static context. Reuses EditableCell's mechanism:
+// the single-shot `handled` guard for WebView2's trailing unmount-blur, and the
+// explicit ref focus+select. Required: rendered ONLY when a newest note exists;
+// a company with no interactions has no note to edit (placeholder em-dash, no
+// editor) — the way to create a first note is logging an interaction.
+function NotizCell({
+  header,
+  showDot,
+  notiz,
+  onCommit,
+}: {
+  // The "{kanal} {date}" source line shown above the editable note text.
+  header: string;
+  showDot: boolean;
+  notiz: string;
+  onCommit: (next: string) => boolean | void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const handled = useRef(false);
+
+  useEffect(() => {
+    if (editing) {
+      handled.current = false;
+      const el = inputRef.current;
+      if (el) {
+        el.focus();
+        el.select();
+      }
+    }
+  }, [editing]);
+
+  function commit() {
+    if (handled.current) return;
+    handled.current = true;
+    onCommit(draft.trim());
+    setEditing(false);
+  }
+
+  function cancel() {
+    if (handled.current) return;
+    handled.current = true;
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <td className="notiz dim" onClick={(e) => e.stopPropagation()}>
+        <span className="src">{header}</span>
+        <input
+          ref={inputRef}
+          className="cell-input"
+          value={draft}
+          placeholder="Notiz"
+          onChange={(e) => setDraft(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commit();
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              cancel();
+            }
+          }}
+        />
+      </td>
+    );
+  }
+
+  return (
+    <td
+      className="notiz dim editable"
+      onClick={(e) => {
+        e.stopPropagation();
+        setDraft(notiz);
+        setEditing(true);
+      }}
+    >
+      {showDot && <span className="ndot" />}
+      <span className="src">{header}</span>
+      <span className="txt">{notiz || EMPTY}</span>
+    </td>
+  );
+}
+
 type Props = {
   companies: Company[];
   // Per-company interactions (loaded by App), keyed by firma id. Drives the
@@ -264,6 +358,9 @@ type Props = {
     firmaId: string,
     patch: Partial<Record<EditableField, string>>,
   ) => void;
+  // Addition 1 (D-07 amended): called when the Notizen cell edit commits. App
+  // rewrites the newest interaction's note (interactionId) + refreshes.
+  onEditNote?: (firmaId: string, interactionId: string, text: string) => void;
   // Test-only seam: lets a test render with dead rows already visible.
   showDeadInitially?: boolean;
 };
@@ -276,6 +373,7 @@ export function CompanyTable({
   onSave,
   onAddCompany,
   onEditCell,
+  onEditNote,
   showDeadInitially = false,
 }: Props) {
   const [showDead, setShowDead] = useState(showDeadInitially);
@@ -552,19 +650,26 @@ export function CompanyTable({
                       </span>
                     </td>
                     <td className="next dim">{nextStep || EMPTY}</td>
-                    <td className="notiz dim">
-                      {newest ? (
-                        <>
-                          {showDot && <span className="ndot" />}
-                          <span className="src">
-                            {newest.kanal || EMPTY} {shortDate(newest.datum)}
-                          </span>
-                          <span className="txt">{newest.notiz || EMPTY}</span>
-                        </>
-                      ) : (
-                        EMPTY
-                      )}
-                    </td>
+                    {newest && latest ? (
+                      // Addition 1 (D-07 amended): editable Notizen — rewrites the
+                      // newest interaction's note (latest.id). Channel/date header
+                      // stays static context.
+                      <NotizCell
+                        header={`${newest.kanal || EMPTY} ${shortDate(newest.datum)}`}
+                        showDot={showDot}
+                        notiz={newest.notiz}
+                        onCommit={(next) => {
+                          if (next === (newest.notiz ?? "")) return true; // no-op
+                          onEditNote?.(c.id, latest.id, next);
+                          return true;
+                        }}
+                      />
+                    ) : (
+                      // No interactions yet → no note to override. Non-editable
+                      // placeholder; logging an interaction is how a first note is
+                      // created (Addition 1 edge case).
+                      <td className="notiz dim">{EMPTY}</td>
+                    )}
                     <EditableCell
                       className="lessons dim"
                       placeholder="Lessons"

@@ -126,6 +126,27 @@ export async function editInteraction(
   });
 }
 
+/**
+ * Rewrite a single interaction's note text (Notizen inline-edit, Addition 1).
+ *
+ * The Notizen column renders the NEWEST interaction's note (deriveNewestNote);
+ * editing that cell flows here with that interaction's id. We patch ONLY `notiz`
+ * — outcome/kanal are untouched, so the derived Status/Nächster Schritt do not
+ * change. We still re-derive inside the same transaction (CR-01): it is a cheap
+ * no-op for a note-only change today and keeps every interaction mutation on the
+ * one atomic edit+re-derive path, so this can never drift from editInteraction.
+ *
+ * This is intentionally NOT a standalone "company note" field: the note lives on
+ * the interaction (D-07 amended) so the Phase-2 derivation stays the single
+ * source of truth. A missing id is a no-op.
+ */
+export async function updateInteractionNote(
+  id: string,
+  notiz: string,
+): Promise<void> {
+  await editInteraction(id, { notiz });
+}
+
 export async function deleteInteraction(id: string): Promise<void> {
   const rows = await db
     .select()
