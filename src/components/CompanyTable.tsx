@@ -9,7 +9,7 @@
 // Tot+Geparkt filter (DB-03), search/sort (DB-04/08), contact actions (CONTACT-*),
 // and — this plan — "+ Neue Firma" inline-add (DB-07/D-05) plus inline cell editing
 // (D-07). CSV importieren stays render-only (Phase 5).
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import type { Company, Contact } from "../data/companies";
 import type { Interaction } from "../data/interactions";
@@ -82,6 +82,28 @@ function EditableCell({
 }: EditableCellProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  // Single-shot guard: once we commit OR cancel, the input may still emit a
+  // trailing onBlur as it unmounts (WebView2 dispatches the native blur on
+  // teardown in a different order than Chromium). This ref makes that trailing
+  // blur a no-op so Enter never double-writes and Escape never accidentally
+  // commits the discarded draft.
+  const handled = useRef(false);
+
+  // Focus + select the text on entering edit mode. Explicit focus via a ref is
+  // more reliable than the `autoFocus` attribute inside a freshly re-rendered
+  // table in WebView2, and selecting the text gives the Excel-like "click then
+  // type to replace" feel.
+  useEffect(() => {
+    if (editing) {
+      handled.current = false;
+      const el = inputRef.current;
+      if (el) {
+        el.focus();
+        el.select();
+      }
+    }
+  }, [editing]);
 
   function begin(e: ReactMouseEvent) {
     e.stopPropagation(); // never toggle the row
@@ -90,26 +112,24 @@ function EditableCell({
   }
 
   function commit() {
-    const result = onCommit(draft.trim());
-    // A falsy return rejects the commit; keep the cell out of edit mode either
-    // way (the parent state reverts the displayed value when rejected).
-    if (result === false) {
-      setEditing(false);
-      return;
-    }
+    if (handled.current) return; // already committed/cancelled (trailing blur)
+    handled.current = true;
+    onCommit(draft.trim()); // a falsy return reverts via the parent's state
     setEditing(false);
   }
 
   function cancel() {
-    setEditing(false);
+    if (handled.current) return;
+    handled.current = true;
+    setEditing(false); // revert: never call onCommit
   }
 
   if (editing) {
     return (
       <td className={className} onClick={(e) => e.stopPropagation()}>
         <input
+          ref={inputRef}
           className="cell-input"
-          autoFocus
           value={draft}
           placeholder={placeholder}
           onChange={(e) => setDraft(e.target.value)}
@@ -150,29 +170,53 @@ function NameCell({
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  // See EditableCell: guards the trailing unmount-blur so Enter never
+  // double-commits and Escape never commits the discarded draft.
+  const handled = useRef(false);
+
+  useEffect(() => {
+    if (editing) {
+      handled.current = false;
+      const el = inputRef.current;
+      if (el) {
+        el.focus();
+        el.select();
+      }
+    }
+  }, [editing]);
+
+  function commit() {
+    if (handled.current) return;
+    handled.current = true;
+    onCommit(draft.trim()); // empty is rejected upstream (D-06) → reverts
+    setEditing(false);
+  }
+
+  function cancel() {
+    if (handled.current) return;
+    handled.current = true;
+    setEditing(false);
+  }
 
   if (editing) {
     return (
       <td className="co" onClick={(e) => e.stopPropagation()}>
         <input
+          ref={inputRef}
           className="cell-input"
-          autoFocus
           value={draft}
           placeholder="Unternehmen"
           onChange={(e) => setDraft(e.target.value)}
           onClick={(e) => e.stopPropagation()}
-          onBlur={() => {
-            onCommit(draft.trim());
-            setEditing(false);
-          }}
+          onBlur={commit}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
-              onCommit(draft.trim());
-              setEditing(false);
+              commit();
             } else if (e.key === "Escape") {
               e.preventDefault();
-              setEditing(false);
+              cancel();
             }
           }}
         />

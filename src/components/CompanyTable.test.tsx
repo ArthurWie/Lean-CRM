@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { useState } from "react";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import { CompanyTable } from "./CompanyTable";
 import type { Company, Contact } from "../data/companies";
@@ -483,6 +484,97 @@ describe("CompanyTable", () => {
       fireEvent.keyDown(input, { key: "Enter" });
       expect(onEditCell).not.toHaveBeenCalled();
       expect(screen.queryByText("Acme GmbH")).toBeTruthy();
+    });
+
+    // Round-trip: a stateful parent (mimicking App's onEditCell → setCompanies)
+    // must show the committed value as plain text after Enter. The plain vi.fn()
+    // tests above never re-render with the patch, so they missed the runtime path
+    // where the new value flows back into the rendered cell.
+    it("Enter commits and the new value becomes visible after the parent re-renders", () => {
+      function Harness() {
+        const [companies, setCompanies] = useState([
+          company({ id: "1", name: "Acme GmbH", status: "Offen", branche: "IT" }),
+        ]);
+        return (
+          <CompanyTable
+            companies={companies}
+            onEditCell={(id, patch) =>
+              setCompanies((cs) =>
+                cs.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+              )
+            }
+          />
+        );
+      }
+      render(<Harness />);
+      fireEvent.click(screen.getByText("IT"));
+      const input = screen.getByDisplayValue("IT");
+      fireEvent.change(input, { target: { value: "Beratung" } });
+      fireEvent.keyDown(input, { key: "Enter" });
+      // Value persisted into the table AND the cell left edit mode.
+      expect(screen.getByText("Beratung")).toBeTruthy();
+      expect(screen.queryByDisplayValue("Beratung")).toBeNull();
+    });
+
+    it("blur commits the edited value (commit-on-blur)", () => {
+      const onEditCell = vi.fn();
+      render(
+        <CompanyTable
+          companies={[
+            company({ id: "1", name: "Acme GmbH", status: "Offen", branche: "IT" }),
+          ]}
+          onEditCell={onEditCell}
+        />,
+      );
+      fireEvent.click(screen.getByText("IT"));
+      const input = screen.getByDisplayValue("IT");
+      fireEvent.change(input, { target: { value: "ViaBlur" } });
+      fireEvent.blur(input);
+      expect(onEditCell).toHaveBeenCalledWith("1", { branche: "ViaBlur" });
+    });
+
+    // Regression guard for the real bug class: pressing Escape unmounts the
+    // focused input, which can fire a trailing onBlur. That trailing blur must
+    // NOT commit the discarded draft (Escape always reverts).
+    it("Escape followed by the unmount blur does NOT commit the discarded draft", () => {
+      const onEditCell = vi.fn();
+      render(
+        <CompanyTable
+          companies={[
+            company({ id: "1", name: "Acme GmbH", status: "Offen", branche: "IT" }),
+          ]}
+          onEditCell={onEditCell}
+        />,
+      );
+      fireEvent.click(screen.getByText("IT"));
+      const input = screen.getByDisplayValue("IT");
+      fireEvent.change(input, { target: { value: "Verworfen" } });
+      fireEvent.keyDown(input, { key: "Escape" });
+      // Simulate the trailing native blur some engines dispatch on teardown.
+      fireEvent.blur(input);
+      expect(onEditCell).not.toHaveBeenCalled();
+      expect(screen.getByText("IT")).toBeTruthy();
+    });
+
+    // Enter must commit exactly once even though unmounting the input can emit a
+    // trailing onBlur (Enter→commit then blur→commit would double-write).
+    it("Enter commits exactly once even if a trailing blur fires on unmount", () => {
+      const onEditCell = vi.fn();
+      render(
+        <CompanyTable
+          companies={[
+            company({ id: "1", name: "Acme GmbH", status: "Offen", branche: "IT" }),
+          ]}
+          onEditCell={onEditCell}
+        />,
+      );
+      fireEvent.click(screen.getByText("IT"));
+      const input = screen.getByDisplayValue("IT");
+      fireEvent.change(input, { target: { value: "Beratung" } });
+      fireEvent.keyDown(input, { key: "Enter" });
+      fireEvent.blur(input); // trailing unmount blur
+      expect(onEditCell).toHaveBeenCalledTimes(1);
+      expect(onEditCell).toHaveBeenCalledWith("1", { branche: "Beratung" });
     });
 
     it("clicking an editable cell to edit does NOT toggle the detail panel", () => {
