@@ -244,6 +244,177 @@ describe("FocusView log", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Task 2 — in-memory cursor: counter, skip-requeue, save-advance, completion, empty
+// ---------------------------------------------------------------------------
+
+// A small helper to find the current company name shown in the card.
+function currentName(): string | null {
+  return document.querySelector(".focus-name")?.textContent?.replace(/🔥/g, "").trim() ?? null;
+}
+function counterText(): string | null {
+  return document.querySelector(".focus-counter")?.textContent ?? null;
+}
+
+function logCurrent() {
+  // Drive the mounted LogForm to a saveable state and click Speichern.
+  fireEvent.click(screen.getByRole("button", { name: "Gesprochen" }));
+  fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
+}
+
+describe("FocusView counter", () => {
+  it("shows 'Firma 1 von Y' with Y = snapshot length, stable after a skip+return (no Firma N>M)", () => {
+    const snapshot = [
+      company({ id: "a", name: "Alpha", reason: "neu" }),
+      company({ id: "b", name: "Beta", reason: "neu" }),
+      company({ id: "c", name: "Gamma", reason: "neu" }),
+    ];
+    render(
+      <FocusView
+        snapshot={snapshot}
+        contactsByFirma={{}}
+        interactionsByFirma={{}}
+        onSaveAndNext={vi.fn()}
+        onSkip={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(counterText()).toBe("Firma 1 von 3");
+    expect(currentName()).toBe("Alpha");
+
+    // Skip Alpha — it re-queues to the end; Beta is served, still "von 3".
+    fireEvent.click(screen.getByRole("button", { name: "Überspringen" }));
+    expect(currentName()).toBe("Beta");
+    expect(counterText()).toBe("Firma 1 von 3");
+
+    // Skip Beta, skip Gamma -> Alpha returns; Y still 3 (never "von 4/5/6").
+    fireEvent.click(screen.getByRole("button", { name: "Überspringen" }));
+    expect(currentName()).toBe("Gamma");
+    fireEvent.click(screen.getByRole("button", { name: "Überspringen" }));
+    expect(currentName()).toBe("Alpha");
+    expect(counterText()).toBe("Firma 1 von 3");
+  });
+
+  it("increments X by distinct finished companies (calledCount + current)", () => {
+    const snapshot = [
+      company({ id: "a", name: "Alpha", reason: "neu" }),
+      company({ id: "b", name: "Beta", reason: "neu" }),
+    ];
+    render(
+      <FocusView
+        snapshot={snapshot}
+        contactsByFirma={{}}
+        interactionsByFirma={{}}
+        onSaveAndNext={vi.fn()}
+        onSkip={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(counterText()).toBe("Firma 1 von 2");
+    logCurrent(); // finish Alpha -> advance to Beta, now 2nd
+    expect(currentName()).toBe("Beta");
+    expect(counterText()).toBe("Firma 2 von 2");
+  });
+});
+
+describe("FocusView skip", () => {
+  it("re-queues the skipped company to the end and calls onSkip(id)", () => {
+    const onSkip = vi.fn();
+    const snapshot = [
+      company({ id: "a", name: "Alpha", reason: "neu" }),
+      company({ id: "b", name: "Beta", reason: "neu" }),
+    ];
+    render(
+      <FocusView
+        snapshot={snapshot}
+        contactsByFirma={{}}
+        interactionsByFirma={{}}
+        onSaveAndNext={vi.fn()}
+        onSkip={onSkip}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(currentName()).toBe("Alpha");
+    fireEvent.click(screen.getByRole("button", { name: "Überspringen" }));
+    expect(onSkip).toHaveBeenCalledWith("a");
+    // Beta now, Alpha re-appears after Beta.
+    expect(currentName()).toBe("Beta");
+    fireEvent.click(screen.getByRole("button", { name: "Überspringen" }));
+    expect(currentName()).toBe("Alpha");
+  });
+});
+
+describe("FocusView save advances", () => {
+  it("calls onSaveAndNext then advances to the next un-called company", () => {
+    const onSaveAndNext = vi.fn();
+    const snapshot = [
+      company({ id: "a", name: "Alpha", reason: "neu" }),
+      company({ id: "b", name: "Beta", reason: "neu" }),
+    ];
+    render(
+      <FocusView
+        snapshot={snapshot}
+        contactsByFirma={{}}
+        interactionsByFirma={{}}
+        onSaveAndNext={onSaveAndNext}
+        onSkip={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(currentName()).toBe("Alpha");
+    logCurrent();
+    expect(onSaveAndNext).toHaveBeenCalledWith("a", expect.objectContaining({ outcome: "Gesprochen" }));
+    expect(currentName()).toBe("Beta");
+  });
+});
+
+describe("FocusView completion", () => {
+  it("shows '{called} angerufen, {skipped} übersprungen' + Zurück zur Tabelle calling onClose", () => {
+    const onClose = vi.fn();
+    const snapshot = [
+      company({ id: "a", name: "Alpha", reason: "neu" }),
+      company({ id: "b", name: "Beta", reason: "neu" }),
+    ];
+    render(
+      <FocusView
+        snapshot={snapshot}
+        contactsByFirma={{}}
+        interactionsByFirma={{}}
+        onSaveAndNext={vi.fn()}
+        onSkip={vi.fn()}
+        onClose={onClose}
+      />,
+    );
+    logCurrent(); // finish Alpha
+    expect(currentName()).toBe("Beta");
+    logCurrent(); // finish Beta -> no un-called remains -> completion
+    expect(screen.getByText("2 angerufen, 0 übersprungen")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Zurück zur Tabelle" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("FocusView empty", () => {
+  it("renders 'Nichts zu tun' + body + Zurück zur Tabelle when snapshot is empty, never a card", () => {
+    const onClose = vi.fn();
+    render(
+      <FocusView
+        snapshot={[]}
+        contactsByFirma={{}}
+        interactionsByFirma={{}}
+        onSaveAndNext={vi.fn()}
+        onSkip={vi.fn()}
+        onClose={onClose}
+      />,
+    );
+    expect(screen.getByText("Nichts zu tun")).toBeTruthy();
+    expect(screen.getByText("Keine fälligen Wiedervorlagen.")).toBeTruthy();
+    expect(document.querySelector(".focus-name")).toBeNull(); // no company card
+    fireEvent.click(screen.getByRole("button", { name: "Zurück zur Tabelle" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("FocusView escaped", () => {
   it("renders HTML-ish note text literally (no dangerouslySetInnerHTML)", () => {
     render(
