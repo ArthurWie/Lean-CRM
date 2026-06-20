@@ -67,6 +67,7 @@ const {
   normName,
   tokenizeEmails,
   validateHeader,
+  parseCsv,
   mergeLessons,
   hasAnyContactField,
   matchCompany,
@@ -106,6 +107,43 @@ function row(overrides: Partial<Record<(typeof HEADER)[number], string>> = {}) {
 // ---------------------------------------------------------------------------
 // PURE HELPERS (Task 1)
 // ---------------------------------------------------------------------------
+
+describe("parseCsv (IMPORT-01 / D-06 — BOM strip + papaparse)", () => {
+  const HEADER_LINE =
+    "unternehmen,fn,branche,groesse,website,ansprechpartner,rolle,telefon,email,linkedin,lessons,quelle,notiz";
+
+  it("parses a valid CSV string into keyed RawRow[] (header:true)", () => {
+    const text = `${HEADER_LINE}\nAcme GmbH,FN 1,IT,10,acme.at,,,,,,,,`;
+    const { data, meta } = parseCsv(text);
+    expect(validateHeader(meta.fields)).toBe(true);
+    expect(data).toHaveLength(1);
+    expect(data[0].unternehmen).toBe("Acme GmbH");
+    expect(data[0].fn).toBe("FN 1");
+  });
+
+  it("strips a leading U+FEFF BOM so the first field is 'unternehmen' (Pitfall 1)", () => {
+    const text = `﻿${HEADER_LINE}\nAcme,,,,,,,,,,,,`;
+    const { meta } = parseCsv(text);
+    // Without the BOM strip, meta.fields[0] would be "﻿unternehmen".
+    expect(meta.fields?.[0]).toBe("unternehmen");
+    expect(validateHeader(meta.fields)).toBe(true);
+  });
+
+  it("a BOM-prefixed valid file still validates true (the desired accept)", () => {
+    const text = `﻿${HEADER_LINE}\nAcme,,,,,,,,,,,,`;
+    expect(validateHeader(parseCsv(text).meta.fields)).toBe(true);
+  });
+
+  it("skipEmptyLines greedy drops whitespace-only lines", () => {
+    const text = `${HEADER_LINE}\nAcme,,,,,,,,,,,,\n   \n\nBeta,,,,,,,,,,,,`;
+    const { data } = parseCsv(text);
+    expect(data.map((r) => r.unternehmen)).toEqual(["Acme", "Beta"]);
+  });
+
+  it("parses the literal leads-beispiel.csv header to the valid schema", () => {
+    expect(validateHeader(parseCsv(beispielCsv).meta.fields)).toBe(true);
+  });
+});
 
 describe("validateHeader (IMPORT-01 / D-06)", () => {
   const good = [

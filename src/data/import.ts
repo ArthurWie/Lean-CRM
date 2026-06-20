@@ -16,6 +16,12 @@
 // deriveStatus stays "Neu" (IMPORT-07 / D-01).
 
 // --- Pure section: type-only imports (purity gate) ---------------------------
+//
+// The one runtime import below is papaparse — a zero-dep plain CSV parser. It is
+// NOT the SQL layer: the purity gate forbids drizzle-orm / ../db/{client,schema}
+// (the data-layer write surface), which this never touches. papaparse is the
+// sole non-type import above the impure fence and parseCsv is its only call site.
+import Papa from "papaparse";
 
 /**
  * The frozen 13-column lead-hunter CSV schema, in order (IMPORT-01 / D-06).
@@ -93,6 +99,25 @@ const LEGAL_FORMS = [
 export function validateHeader(fields: string[] | undefined): boolean {
   if (!fields || fields.length !== HEADER.length) return false;
   return HEADER.every((h, i) => fields[i] === h);
+}
+
+/**
+ * Parse raw CSV text into RawRow[] + meta (IMPORT-01 / D-06). The ONLY papaparse
+ * call site in the codebase. Two locked decisions:
+ *  - Strip a leading U+FEFF BOM FIRST (Pitfall 1): papaparse does NOT strip the
+ *    BOM under header:true, so without this the first header would parse as
+ *    "﻿unternehmen" and validateHeader would (wrongly) reject a valid file.
+ *  - header:true + skipEmptyLines:"greedy" — keyed rows, drop whitespace-only
+ *    lines. No dynamicTyping (every cell stays a string), no transformHeader
+ *    (the header is validated verbatim against HEADER), no worker (sync string
+ *    API; the file is small and local). meta.fields drives validateHeader.
+ */
+export function parseCsv(text: string): Papa.ParseResult<RawRow> {
+  const stripped = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+  return Papa.parse<RawRow>(stripped, {
+    header: true,
+    skipEmptyLines: "greedy",
+  });
 }
 
 /**
