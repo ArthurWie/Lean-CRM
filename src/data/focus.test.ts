@@ -135,8 +135,8 @@ describe("focus data layer — getFocusSnapshot", () => {
     await seedInteraction(hotA);
 
     // neu group (zero interactions, de-alpha)
-    const neuB = await seedFirma({ name: "Wolke GmbH", status: "Neu" });
-    const neuA = await seedFirma({ name: "Insel GmbH", status: "Neu" });
+    await seedFirma({ name: "Wolke GmbH", status: "Neu" });
+    await seedFirma({ name: "Insel GmbH", status: "Neu" });
 
     const snap = await getFocusSnapshot(NOW);
     const names = snap.map((c) => c.name);
