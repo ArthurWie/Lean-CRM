@@ -2,7 +2,13 @@
 // Components import THIS module, never drizzle or the schema directly.
 // This and src/db/client.ts are the ONLY modules that import drizzle/schema.
 import { db } from "../db/client";
-import { firmen, kontakte, kontakt_mails } from "../db/schema";
+import {
+  firmen,
+  kontakte,
+  kontakt_mails,
+  interaktionen,
+  followups,
+} from "../db/schema";
 import { eq, inArray } from "drizzle-orm";
 
 export type Company = typeof firmen.$inferSelect;
@@ -120,6 +126,35 @@ export async function updateCompanyField(
     .update(firmen)
     .set({ ...patch, updated_at: new Date().toISOString() })
     .where(eq(firmen.id, id));
+}
+
+// Addition 2: hard-delete a company and every row that depends on it, for fixing
+// a mistaken add. The schema's foreign keys are ON DELETE NO ACTION and SQLite's
+// FK enforcement is off in this app, so there is no DB-level cascade — we delete
+// the dependents explicitly, in FK-safe order, inside ONE transaction (mirrors
+// interactions.ts' transaction discipline, CR-01): kontakt_mails (→ kontakte) →
+// kontakte → interaktionen → followups → firmen. Either everything for this firma
+// goes or nothing does. A firma with no dependents simply deletes the firma row.
+export async function deleteCompany(firmaId: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    // kontakt_mails reference kontakte, not firmen — resolve this firma's contact
+    // ids first, then delete their mail rows before the contacts themselves.
+    const contacts = await tx
+      .select({ id: kontakte.id })
+      .from(kontakte)
+      .where(eq(kontakte.firma_id, firmaId));
+    const contactIds = contacts.map((k) => k.id);
+    if (contactIds.length > 0) {
+      await tx
+        .delete(kontakt_mails)
+        .where(inArray(kontakt_mails.kontakt_id, contactIds));
+    }
+
+    await tx.delete(kontakte).where(eq(kontakte.firma_id, firmaId));
+    await tx.delete(interaktionen).where(eq(interaktionen.firma_id, firmaId));
+    await tx.delete(followups).where(eq(followups.firma_id, firmaId));
+    await tx.delete(firmen).where(eq(firmen.id, firmaId));
+  });
 }
 
 export async function seedIfEmpty(): Promise<void> {
