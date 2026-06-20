@@ -9,16 +9,23 @@ import {
   interaktionen,
   followups,
 } from "../db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, isNull, isNotNull } from "drizzle-orm";
 
 export type Company = typeof firmen.$inferSelect;
+
+// "Zuletzt gelöscht" retention: a soft-deleted company is recoverable for this
+// many days, after which purgeExpiredCompanies() hard-deletes it (cascade). The
+// single source of truth for the window — UI ("noch X Tage") and purge share it.
+export const TRASH_RETENTION_DAYS = 7;
 // DATA-04: a contact carries its many emails inline. emails[0] is the primary
 // (D-02) — Mail actions and the table use the first element.
 export type Contact = typeof kontakte.$inferSelect & { emails: string[] };
 
 export async function listCompanies(): Promise<Company[]> {
-  // Sorting/filtering is done in the UI for Phase 1.
-  return db.select().from(firmen);
+  // Sorting/filtering is done in the UI. Soft-deleted companies (deleted_at set)
+  // are excluded here so they vanish from the Aktiv/Tot/Geparkt list and search —
+  // they live only in the "Zuletzt gelöscht" view via listDeletedCompanies().
+  return db.select().from(firmen).where(isNull(firmen.deleted_at));
 }
 
 // DB-06: the contacts (Ansprechpartner) shown in a company's detail panel.
@@ -170,6 +177,48 @@ export async function deleteCompany(firmaId: string): Promise<void> {
   await db.delete(interaktionen).where(eq(interaktionen.firma_id, firmaId));
   await db.delete(followups).where(eq(followups.firma_id, firmaId));
   await db.delete(firmen).where(eq(firmen.id, firmaId));
+}
+
+// "Zuletzt gelöscht" — Löschen now SOFT-deletes (recoverable for
+// TRASH_RETENTION_DAYS): stamp deleted_at so the company drops out of
+// listCompanies() and shows up in the trash view instead. The interaction
+// history and dependents are left untouched, so a restore brings everything back.
+export async function softDeleteCompany(firmaId: string): Promise<void> {
+  await db
+    .update(firmen)
+    .set({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .where(eq(firmen.id, firmaId));
+}
+
+// Undo a soft-delete: clear deleted_at so the company returns to listCompanies().
+export async function restoreCompany(firmaId: string): Promise<void> {
+  await db
+    .update(firmen)
+    .set({ deleted_at: null, updated_at: new Date().toISOString() })
+    .where(eq(firmen.id, firmaId));
+}
+
+// The "Zuletzt gelöscht" view's rows: every soft-deleted company (deleted_at
+// set). deleted_at is included on the row so the UI can render "noch X Tage".
+export async function listDeletedCompanies(): Promise<Company[]> {
+  return db.select().from(firmen).where(isNotNull(firmen.deleted_at));
+}
+
+// Auto-purge: hard-delete (cascade) every company whose deleted_at is older than
+// TRASH_RETENTION_DAYS. Called on startup before the first listCompanies() load.
+// Reuses deleteCompany so dependents (kontakte/mails/interaktionen/followups) go
+// too. Returns how many companies were purged.
+export async function purgeExpiredCompanies(): Promise<number> {
+  const deleted = await listDeletedCompanies();
+  const cutoff = Date.now() - TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+
+  const expired = deleted.filter(
+    (c) => c.deleted_at != null && new Date(c.deleted_at).getTime() < cutoff,
+  );
+  for (const c of expired) {
+    await deleteCompany(c.id);
+  }
+  return expired.length;
 }
 
 export async function seedIfEmpty(): Promise<void> {
