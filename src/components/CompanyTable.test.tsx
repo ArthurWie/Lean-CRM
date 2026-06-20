@@ -162,10 +162,12 @@ describe("CompanyTable", () => {
         interactionsByFirma={{ "1": [] }}
       />,
     );
+    // The Unternehmen cell is now inline-editable (D-07), so the row-open target
+    // is a non-editable cell (the Status pill). Clicking the name edits, not opens.
     expect(screen.queryByText("Verlauf (Notizen)")).toBeNull();
-    fireEvent.click(screen.getByText("Himmelhoch GmbH"));
+    fireEvent.click(screen.getByText("Im Gespräch"));
     expect(screen.queryByText("Verlauf (Notizen)")).toBeTruthy();
-    fireEvent.click(screen.getByText("Himmelhoch GmbH"));
+    fireEvent.click(screen.getByText("Im Gespräch"));
     expect(screen.queryByText("Verlauf (Notizen)")).toBeNull();
   });
 
@@ -178,7 +180,8 @@ describe("CompanyTable", () => {
         onOpenRow={onOpenRow}
       />,
     );
-    fireEvent.click(screen.getByText("Himmelhoch GmbH"));
+    // Open via a non-editable cell (Status pill); the name cell now edits (D-07).
+    fireEvent.click(screen.getByText("Neu"));
     expect(onOpenRow).toHaveBeenCalledWith("1");
   });
 
@@ -351,6 +354,126 @@ describe("CompanyTable", () => {
       // Reveal dead rows → the dead match now appears too.
       fireEvent.click(screen.getByRole("button", { name: "Tot/Geparkt" }));
       expect(screen.queryByText("Alpha Tot GmbH")).toBeTruthy();
+    });
+  });
+
+  describe("manual add + inline editing (DB-07, D-05/06/07)", () => {
+    it("the + Neue Firma button is enabled (not disabled)", () => {
+      render(<CompanyTable companies={[company({ id: "1", name: "Acme GmbH", status: "Neu" })]} />);
+      const btn = screen.getByRole("button", { name: "+ Neue Firma" }) as HTMLButtonElement;
+      expect(btn.disabled).toBe(false);
+    });
+
+    it("clicking + Neue Firma renders an editable row at the top with a Neu pill", () => {
+      render(<CompanyTable companies={[company({ id: "1", name: "Acme GmbH", status: "Offen" })]} />);
+      expect(screen.queryByPlaceholderText("Unternehmen")).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "+ Neue Firma" }));
+      // The draft name input appears...
+      const nameInput = screen.getByPlaceholderText("Unternehmen");
+      expect(nameInput).toBeTruthy();
+      // ...inside the FIRST body row (pinned at the top).
+      const firstRow = document.querySelector("tbody tr") as HTMLElement;
+      expect(within(firstRow).queryByPlaceholderText("Unternehmen")).toBeTruthy();
+      // The draft row shows a Neu status pill.
+      expect(within(firstRow).getByText("Neu").className).toContain("neu");
+    });
+
+    it("Save is blocked while Unternehmen is empty and does not call onAddCompany", () => {
+      const onAddCompany = vi.fn();
+      render(
+        <CompanyTable
+          companies={[company({ id: "1", name: "Acme GmbH", status: "Offen" })]}
+          onAddCompany={onAddCompany}
+        />,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "+ Neue Firma" }));
+      const save = screen.getByRole("button", { name: "Speichern" }) as HTMLButtonElement;
+      expect(save.disabled).toBe(true);
+      fireEvent.click(save);
+      expect(onAddCompany).not.toHaveBeenCalled();
+    });
+
+    it("typing a name then Saving calls onAddCompany and clears the draft row", () => {
+      const onAddCompany = vi.fn();
+      render(
+        <CompanyTable
+          companies={[company({ id: "1", name: "Acme GmbH", status: "Offen" })]}
+          onAddCompany={onAddCompany}
+        />,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "+ Neue Firma" }));
+      fireEvent.change(screen.getByPlaceholderText("Unternehmen"), {
+        target: { value: "Neue Firma GmbH" },
+      });
+      const save = screen.getByRole("button", { name: "Speichern" }) as HTMLButtonElement;
+      expect(save.disabled).toBe(false);
+      fireEvent.click(save);
+      expect(onAddCompany).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "Neue Firma GmbH" }),
+      );
+      // Draft row is gone after save.
+      expect(screen.queryByPlaceholderText("Unternehmen")).toBeNull();
+    });
+
+    it("committing an inline edit on an existing cell calls onEditCell with the field patch", () => {
+      const onEditCell = vi.fn();
+      render(
+        <CompanyTable
+          companies={[company({ id: "1", name: "Acme GmbH", status: "Offen", branche: "IT" })]}
+          onEditCell={onEditCell}
+        />,
+      );
+      // Click the Branche cell to edit, change the value, press Enter to commit.
+      fireEvent.click(screen.getByText("IT"));
+      const input = screen.getByDisplayValue("IT");
+      fireEvent.change(input, { target: { value: "Beratung" } });
+      fireEvent.keyDown(input, { key: "Enter" });
+      expect(onEditCell).toHaveBeenCalledWith("1", { branche: "Beratung" });
+    });
+
+    it("Escape cancels an inline edit without calling onEditCell", () => {
+      const onEditCell = vi.fn();
+      render(
+        <CompanyTable
+          companies={[company({ id: "1", name: "Acme GmbH", status: "Offen", branche: "IT" })]}
+          onEditCell={onEditCell}
+        />,
+      );
+      fireEvent.click(screen.getByText("IT"));
+      const input = screen.getByDisplayValue("IT");
+      fireEvent.change(input, { target: { value: "Verworfen" } });
+      fireEvent.keyDown(input, { key: "Escape" });
+      expect(onEditCell).not.toHaveBeenCalled();
+      // Cell reverts to the original value.
+      expect(screen.queryByText("IT")).toBeTruthy();
+    });
+
+    it("clearing a required Unternehmen on commit reverts and does not call onEditCell", () => {
+      const onEditCell = vi.fn();
+      render(
+        <CompanyTable
+          companies={[company({ id: "1", name: "Acme GmbH", status: "Offen" })]}
+          onEditCell={onEditCell}
+        />,
+      );
+      fireEvent.click(screen.getByText("Acme GmbH"));
+      const input = screen.getByDisplayValue("Acme GmbH");
+      fireEvent.change(input, { target: { value: "   " } });
+      fireEvent.keyDown(input, { key: "Enter" });
+      expect(onEditCell).not.toHaveBeenCalled();
+      expect(screen.queryByText("Acme GmbH")).toBeTruthy();
+    });
+
+    it("clicking an editable cell to edit does NOT toggle the detail panel", () => {
+      render(
+        <CompanyTable
+          companies={[company({ id: "1", name: "Acme GmbH", status: "Offen", branche: "IT" })]}
+          interactionsByFirma={{ "1": [] }}
+        />,
+      );
+      expect(screen.queryByText("Verlauf (Notizen)")).toBeNull();
+      fireEvent.click(screen.getByText("IT"));
+      expect(screen.queryByText("Verlauf (Notizen)")).toBeNull(); // still closed
     });
   });
 

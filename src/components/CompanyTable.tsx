@@ -5,10 +5,12 @@
 //
 // The look is reproduced verbatim from lean-crm-mockup.html via CompanyTable.css:
 // nine columns, sticky first column + sticky header, single grid lines, navy/2px
-// palette, status pills, dead-row dimming, 🔥 as the sole emoji. The ONE wired
-// interaction is the Aktiv / Tot+Geparkt filter (DB-03); everything else (row click,
-// Tel/Mail/in OS actions, search, + Neue Firma, CSV importieren) is render-only this phase.
+// palette, status pills, dead-row dimming, 🔥 as the sole emoji. Phase 3 wires the
+// Tot+Geparkt filter (DB-03), search/sort (DB-04/08), contact actions (CONTACT-*),
+// and — this plan — "+ Neue Firma" inline-add (DB-07/D-05) plus inline cell editing
+// (D-07). CSV importieren stays render-only (Phase 5).
 import { Fragment, useMemo, useState } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import type { Company, Contact } from "../data/companies";
 import type { Interaction } from "../data/interactions";
 import type { Status } from "../types";
@@ -38,6 +40,161 @@ const PILL_VARIANT: Record<Status, string> = {
 
 const EMPTY = "—"; // em dash for empty cells
 
+// D-07: the company text fields that are inline-editable on any row. Notizen /
+// Nächster Schritt / Status / Kontakt are derived/action cells and stay read-only.
+type EditableField = "name" | "branche" | "groesse" | "website" | "fn" | "lessons";
+
+// A brand-new company being entered via "+ Neue Firma" (held outside the sorted
+// list until saved; D-05). Mirrors the editable fields; name is required (D-06).
+type AddDraft = Record<EditableField, string>;
+
+const EMPTY_DRAFT: AddDraft = {
+  name: "",
+  branche: "",
+  groesse: "",
+  website: "",
+  fn: "",
+  lessons: "",
+};
+
+// Shared input metrics for inline edit / add (UI-SPEC §2/§3: mirror .search —
+// padding 7px 11px, radius 8px, 13px, 1px var(--line), focus border = accent).
+// Styling lives in CompanyTable.css under .cell-input; this class is the hook.
+type EditableCellProps = {
+  value: string | null;
+  // Render class for the static (non-editing) cell text.
+  className?: string;
+  // Placeholder shown for an empty value while editing (e.g. the field name).
+  placeholder?: string;
+  // Commit the trimmed new value. Returning false rejects the commit (e.g. a
+  // required field went empty) and the cell reverts to the previous value.
+  onCommit: (next: string) => boolean | void;
+};
+
+// An inline-editable table cell: click to edit, render an input in place,
+// commit-on-blur, Enter commits, Escape cancels (UI-SPEC §3). The click
+// stopPropagation's so editing a cell never toggles the row detail panel.
+function EditableCell({
+  value,
+  className,
+  placeholder,
+  onCommit,
+}: EditableCellProps) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  function begin(e: ReactMouseEvent) {
+    e.stopPropagation(); // never toggle the row
+    setDraft(value ?? "");
+    setEditing(true);
+  }
+
+  function commit() {
+    const result = onCommit(draft.trim());
+    // A falsy return rejects the commit; keep the cell out of edit mode either
+    // way (the parent state reverts the displayed value when rejected).
+    if (result === false) {
+      setEditing(false);
+      return;
+    }
+    setEditing(false);
+  }
+
+  function cancel() {
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <td className={className} onClick={(e) => e.stopPropagation()}>
+        <input
+          className="cell-input"
+          autoFocus
+          value={draft}
+          placeholder={placeholder}
+          onChange={(e) => setDraft(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commit();
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              cancel();
+            }
+          }}
+        />
+      </td>
+    );
+  }
+
+  return (
+    <td className={className ? `${className} editable` : "editable"} onClick={begin}>
+      {value || EMPTY}
+    </td>
+  );
+}
+
+// The sticky Unternehmen cell (.co) — editable like the others but it also carries
+// the 🔥 glyph and the sticky/dead styling, so it gets a dedicated editor that
+// preserves that markup. Required field: an empty commit reverts (D-06).
+function NameCell({
+  name,
+  heiss,
+  onCommit,
+}: {
+  name: string;
+  heiss: boolean;
+  onCommit: (next: string) => boolean | void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  if (editing) {
+    return (
+      <td className="co" onClick={(e) => e.stopPropagation()}>
+        <input
+          className="cell-input"
+          autoFocus
+          value={draft}
+          placeholder="Unternehmen"
+          onChange={(e) => setDraft(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          onBlur={() => {
+            onCommit(draft.trim());
+            setEditing(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              onCommit(draft.trim());
+              setEditing(false);
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              setEditing(false);
+            }
+          }}
+        />
+      </td>
+    );
+  }
+
+  return (
+    <td
+      className="co editable"
+      onClick={(e) => {
+        e.stopPropagation();
+        setDraft(name);
+        setEditing(true);
+      }}
+    >
+      {name}
+      {heiss && <span className="fire">🔥</span>}
+    </td>
+  );
+}
+
 type Props = {
   companies: Company[];
   // Per-company interactions (loaded by App), keyed by firma id. Drives the
@@ -49,6 +206,20 @@ type Props = {
   onOpenRow?: (firmaId: string) => void;
   // Called when the embedded LogForm saves; App logs the interaction + refreshes.
   onSave?: (firmaId: string, entry: LogEntry) => void;
+  // DB-07/D-05: called when a new company is saved from the inline-add row. App
+  // persists it (Status "Neu") and refreshes the list.
+  onAddCompany?: (input: {
+    name: string;
+    fn?: string;
+    branche?: string;
+    groesse?: string;
+    website?: string;
+  }) => void;
+  // D-07: called when an inline cell edit commits. App patches the field + refreshes.
+  onEditCell?: (
+    firmaId: string,
+    patch: Partial<Record<EditableField, string>>,
+  ) => void;
   // Test-only seam: lets a test render with dead rows already visible.
   showDeadInitially?: boolean;
 };
@@ -59,11 +230,46 @@ export function CompanyTable({
   contactsByFirma = {},
   onOpenRow,
   onSave,
+  onAddCompany,
+  onEditCell,
   showDeadInitially = false,
 }: Props) {
   const [showDead, setShowDead] = useState(showDeadInitially);
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // DB-07/D-05: the in-progress "+ Neue Firma" draft, or null when not adding.
+  // Held outside the sorted list and pinned at the top of the tbody until saved.
+  const [addDraft, setAddDraft] = useState<AddDraft | null>(null);
+
+  // Build the data-layer input from the draft, dropping empty optional fields.
+  function saveAddDraft() {
+    if (!addDraft) return;
+    const name = addDraft.name.trim();
+    if (!name) return; // D-06: Unternehmen required — block save
+    onAddCompany?.({
+      name,
+      fn: addDraft.fn.trim() || undefined,
+      branche: addDraft.branche.trim() || undefined,
+      groesse: addDraft.groesse.trim() || undefined,
+      website: addDraft.website.trim() || undefined,
+    });
+    setAddDraft(null);
+  }
+
+  // Commit an inline edit on an existing company. Required Unternehmen reverts on
+  // empty (return false so the cell shows the previous value); other fields accept
+  // any trimmed value (including clearing to empty).
+  function commitEdit(
+    c: Company,
+    field: EditableField,
+    next: string,
+  ): boolean {
+    if (field === "name" && next === "") return false; // revert
+    const current = (c[field] as string | null) ?? "";
+    if (next === current) return true; // no-op, no write
+    onEditCell?.(c.id, { [field]: next });
+    return true;
+  }
 
   function toggleRow(id: string) {
     setExpandedId((cur) => {
@@ -106,7 +312,11 @@ export function CompanyTable({
         <button className="impbtn" type="button" disabled>
           CSV importieren
         </button>
-        <button className="addbtn" type="button" disabled>
+        <button
+          className="addbtn"
+          type="button"
+          onClick={() => setAddDraft((d) => d ?? { ...EMPTY_DRAFT })}
+        >
           + Neue Firma
         </button>
       </div>
@@ -127,6 +337,79 @@ export function CompanyTable({
             </tr>
           </thead>
           <tbody>
+            {addDraft && (
+              <tr className="r-main r-add">
+                <td className="co">
+                  <input
+                    className="cell-input"
+                    autoFocus
+                    placeholder="Unternehmen"
+                    value={addDraft.name}
+                    onChange={(e) =>
+                      setAddDraft((d) => (d ? { ...d, name: e.target.value } : d))
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        saveAddDraft();
+                      } else if (e.key === "Escape") {
+                        e.preventDefault();
+                        setAddDraft(null);
+                      }
+                    }}
+                  />
+                </td>
+                {(["branche", "groesse"] as const).map((f) => (
+                  <td key={f}>
+                    <input
+                      className="cell-input"
+                      placeholder={f === "branche" ? "Branche" : "Größe"}
+                      value={addDraft[f]}
+                      onChange={(e) =>
+                        setAddDraft((d) =>
+                          d ? { ...d, [f]: e.target.value } : d,
+                        )
+                      }
+                    />
+                  </td>
+                ))}
+                {/* Ansprechpartner + Kontakt are managed in the detail panel (D-08). */}
+                <td className="dim">{EMPTY}</td>
+                <td className="dim">{EMPTY}</td>
+                <td>
+                  <span className="stp neu">Neu</span>
+                </td>
+                <td className="next dim">{EMPTY}</td>
+                <td className="notiz dim">{EMPTY}</td>
+                <td className="lessons addrow-actions">
+                  <input
+                    className="cell-input"
+                    placeholder="Lessons"
+                    value={addDraft.lessons}
+                    onChange={(e) =>
+                      setAddDraft((d) =>
+                        d ? { ...d, lessons: e.target.value } : d,
+                      )
+                    }
+                  />
+                  <button
+                    type="button"
+                    className="save"
+                    disabled={!addDraft.name.trim()}
+                    onClick={saveAddDraft}
+                  >
+                    Speichern
+                  </button>
+                  <button
+                    type="button"
+                    className="cancel"
+                    onClick={() => setAddDraft(null)}
+                  >
+                    Abbrechen
+                  </button>
+                </td>
+              </tr>
+            )}
             {visible.map((c) => {
               const dead = DEAD.has(c.status as Status);
               const interactions = interactionsByFirma[c.id] ?? [];
@@ -154,12 +437,23 @@ export function CompanyTable({
                     className={dead ? "r-main row-dead" : "r-main"}
                     onClick={() => toggleRow(c.id)}
                   >
-                    <td className="co">
-                      {c.name}
-                      {c.heiss && <span className="fire">🔥</span>}
-                    </td>
-                    <td className="dim">{c.branche || EMPTY}</td>
-                    <td className="dim">{c.groesse || EMPTY}</td>
+                    <NameCell
+                      name={c.name}
+                      heiss={c.heiss}
+                      onCommit={(next) => commitEdit(c, "name", next)}
+                    />
+                    <EditableCell
+                      className="dim"
+                      placeholder="Branche"
+                      value={c.branche}
+                      onCommit={(next) => commitEdit(c, "branche", next)}
+                    />
+                    <EditableCell
+                      className="dim"
+                      placeholder="Größe"
+                      value={c.groesse}
+                      onCommit={(next) => commitEdit(c, "groesse", next)}
+                    />
                     <td className="dim">{apName || EMPTY}</td>
                     <td>
                       <span className="cIcons">
@@ -218,7 +512,12 @@ export function CompanyTable({
                         EMPTY
                       )}
                     </td>
-                    <td className="lessons dim">{c.lessons || EMPTY}</td>
+                    <EditableCell
+                      className="lessons dim"
+                      placeholder="Lessons"
+                      value={c.lessons}
+                      onCommit={(next) => commitEdit(c, "lessons", next)}
+                    />
                   </tr>
                   {expanded && (
                     <tr className="detail">

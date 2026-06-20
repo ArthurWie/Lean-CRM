@@ -4,10 +4,12 @@
 // schema (DATA-02). The table itself is CompanyTable (Plan 02).
 import { useEffect, useState } from "react";
 import {
+  addCompany,
   listCompanies,
   listContacts,
   markViewed,
   seedIfEmpty,
+  updateCompanyField,
   type Company,
   type Contact,
 } from "./data/companies";
@@ -87,6 +89,40 @@ function App() {
     }
   }
 
+  // DB-07 / D-05: manual add via "+ Neue Firma". Persist the new company (Status
+  // "Neu" derived in the data layer) then reload the list so it falls into sorted
+  // order with its .stp.neu pill.
+  async function handleAddCompany(input: {
+    name: string;
+    fn?: string;
+    branche?: string;
+    groesse?: string;
+    website?: string;
+  }) {
+    try {
+      await addCompany(input);
+      setCompanies(await listCompanies());
+    } catch (e) {
+      console.error("Failed to add company:", e);
+    }
+  }
+
+  // D-07: commit an inline edit of a company text field, then reload so the row
+  // reflects the persisted value.
+  async function handleEditCell(
+    id: string,
+    patch: Partial<
+      Pick<Company, "name" | "fn" | "branche" | "groesse" | "website" | "lessons">
+    >,
+  ) {
+    try {
+      await updateCompanyField(id, patch);
+      setCompanies(await listCompanies());
+    } catch (e) {
+      console.error("Failed to edit company field:", e);
+    }
+  }
+
   return (
     <div className="app">
       <aside className="sidebar">
@@ -131,6 +167,8 @@ function App() {
             contactsByFirma={contactsByFirma}
             onOpenRow={handleOpenRow}
             onSave={handleSave}
+            onAddCompany={handleAddCompany}
+            onEditCell={handleEditCell}
           />
         )}
       </main>

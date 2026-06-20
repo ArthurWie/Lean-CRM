@@ -263,6 +263,67 @@ td.co {
   white-space: nowrap;
 }
 
+/* Inline editing + manual add (DB-07 / D-05 / D-07).
+   Editable cells get a subtle hover cue (cursor:text + faint wash) to distinguish
+   from the row-open click target (UI-SPEC §3). The in-place input adopts the
+   established input metrics (mirror .search): 7px 11px / radius 8 / 13px / line
+   border, focus border = accent. */
+td.editable {
+  cursor: text;
+}
+.r-main:hover td.editable:hover {
+  background: var(--line2);
+}
+.cell-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 11px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--surface);
+}
+.cell-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* The pinned "+ Neue Firma" draft row + its Speichern/Abbrechen actions. */
+.r-add td {
+  background: var(--accent-soft);
+}
+.addrow-actions {
+  white-space: nowrap;
+}
+.addrow-actions .save {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-left: 8px;
+}
+.addrow-actions .save:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.addrow-actions .cancel {
+  background: transparent;
+  color: var(--soft);
+  border: none;
+  font-size: 12.5px;
+  cursor: pointer;
+  margin-left: 6px;
+}
+.addrow-actions .cancel:hover {
+  color: var(--hot);
+}
+
 /* Empty states (Copywriting Contract) */
 .empty {
   padding: 28px 16px;
