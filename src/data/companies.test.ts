@@ -56,9 +56,8 @@ vi.mock("@tauri-apps/plugin-sql", () => {
 });
 
 // Import AFTER the mock is registered.
-const { seedIfEmpty, listCompanies, markViewed, setManualStatus } = await import(
-  "./companies"
-);
+const { seedIfEmpty, listCompanies, listContacts, markViewed, setManualStatus } =
+  await import("./companies");
 const { db } = await import("../db/client");
 const { firmen, kontakte, kontakt_mails } = await import("../db/schema");
 const { eq } = await import("drizzle-orm");
@@ -100,6 +99,42 @@ describe("companies data layer", () => {
       "eva@himmelhoch.at",
       "office@himmelhoch.at",
     ]);
+  });
+
+  it("listContacts attaches each contact's emails array (DATA-04 join)", async () => {
+    await seedIfEmpty();
+    const himmelhoch = (await listCompanies()).find(
+      (c) => c.name === "Himmelhoch GmbH"
+    )!;
+
+    const contacts = await listContacts(himmelhoch.id);
+    const eva = contacts.find((k) => k.name === "Eva Mandl");
+    expect(eva).toBeDefined();
+    expect(eva!.emails).toHaveLength(2);
+    expect([...eva!.emails].sort()).toEqual([
+      "eva@himmelhoch.at",
+      "office@himmelhoch.at",
+    ]);
+  });
+
+  it("listContacts returns emails: [] for a contact with no kontakt_mails", async () => {
+    await seedIfEmpty();
+    const himmelhoch = (await listCompanies()).find(
+      (c) => c.name === "Himmelhoch GmbH"
+    )!;
+    // Add a second contact with no mail rows.
+    const lonelyId = crypto.randomUUID();
+    await db.insert(kontakte).values({
+      id: lonelyId,
+      firma_id: himmelhoch.id,
+      name: "Ohne Mail",
+      relevant: false,
+    });
+
+    const contacts = await listContacts(himmelhoch.id);
+    const lonely = contacts.find((k) => k.id === lonelyId);
+    expect(lonely).toBeDefined();
+    expect(lonely!.emails).toEqual([]);
   });
 
   it("is idempotent: a second seedIfEmpty does not duplicate rows", async () => {
