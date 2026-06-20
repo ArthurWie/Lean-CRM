@@ -24,6 +24,12 @@ pub fn run() {
             sql: include_str!("../migrations/0002_add_last_viewed.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 3,
+            description: "add_deleted_at",
+            sql: include_str!("../migrations/0003_add_deleted_at.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

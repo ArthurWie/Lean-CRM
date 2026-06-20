@@ -19,6 +19,7 @@ const { DatabaseSync } = nodeRequire("node:sqlite") as typeof import("node:sqlit
 const MIGRATION_PATHS = [
   "../../src-tauri/migrations/0001_init.sql",
   "../../src-tauri/migrations/0002_add_last_viewed.sql",
+  "../../src-tauri/migrations/0003_add_deleted_at.sql",
 ].map((p) => fileURLToPath(new URL(p, import.meta.url)));
 
 let sqlite: DatabaseSyncType;

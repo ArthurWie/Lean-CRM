@@ -18,6 +18,7 @@ export const firmen = sqliteTable("firmen", {
   created_at: text("created_at").notNull(), // UTC ISO-8601
   updated_at: text("updated_at").notNull(), // UTC ISO-8601, set in data layer
   last_viewed: text("last_viewed"), // UTC ISO-8601, nullable = never viewed (DB-05/D-07)
+  deleted_at: text("deleted_at"), // UTC ISO-8601, nullable = not deleted (soft-delete / "Zuletzt gelöscht")
 });
 
 export const kontakte = sqliteTable("kontakte", {

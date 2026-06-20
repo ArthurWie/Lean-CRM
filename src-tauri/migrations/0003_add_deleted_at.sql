@@ -1,0 +1,1 @@
+ALTER TABLE `firmen` ADD `deleted_at` text;
