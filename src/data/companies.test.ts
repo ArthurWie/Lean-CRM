@@ -64,9 +64,12 @@ const {
   setManualStatus,
   addCompany,
   updateCompanyField,
+  deleteCompany,
 } = await import("./companies");
 const { db } = await import("../db/client");
-const { firmen, kontakte, kontakt_mails } = await import("../db/schema");
+const { firmen, kontakte, kontakt_mails, interaktionen, followups } = await import(
+  "../db/schema"
+);
 const { eq } = await import("drizzle-orm");
 
 beforeEach(() => {
@@ -263,5 +266,115 @@ describe("companies data layer", () => {
     // The other row is untouched.
     expect(bAfter.fn).toBe(bBefore.fn);
     expect(bAfter.updated_at).toBe(bBefore.updated_at);
+  });
+
+  // --- Addition 2: hard-delete a company and all its dependents (cascade) ---
+
+  it("deleteCompany hard-deletes the firma AND all dependent rows in one cascade", async () => {
+    const firmaId = await addCompany({ name: "Weg GmbH" });
+
+    // A contact with two emails.
+    const kontaktId = crypto.randomUUID();
+    await db.insert(kontakte).values({
+      id: kontaktId,
+      firma_id: firmaId,
+      name: "Max Muster",
+      relevant: true,
+    });
+    await db.insert(kontakt_mails).values([
+      { id: crypto.randomUUID(), kontakt_id: kontaktId, email: "a@weg.at" },
+      { id: crypto.randomUUID(), kontakt_id: kontaktId, email: "b@weg.at" },
+    ]);
+    // An interaction and a follow-up.
+    await db.insert(interaktionen).values({
+      id: crypto.randomUUID(),
+      firma_id: firmaId,
+      datum: new Date().toISOString(),
+      kanal: "Telefon",
+      outcome: "Gesprochen",
+      notiz: "x",
+      bearbeiter: "Arthur",
+    });
+    await db.insert(followups).values({
+      id: crypto.randomUUID(),
+      firma_id: firmaId,
+      faellig_am: new Date().toISOString(),
+      erledigt: false,
+    });
+
+    await deleteCompany(firmaId);
+
+    // Company gone.
+    expect((await listCompanies()).find((c) => c.id === firmaId)).toBeUndefined();
+    // Every dependent row gone.
+    expect(
+      await db.select().from(kontakte).where(eq(kontakte.firma_id, firmaId)),
+    ).toHaveLength(0);
+    expect(
+      await db
+        .select()
+        .from(kontakt_mails)
+        .where(eq(kontakt_mails.kontakt_id, kontaktId)),
+    ).toHaveLength(0);
+    expect(
+      await db
+        .select()
+        .from(interaktionen)
+        .where(eq(interaktionen.firma_id, firmaId)),
+    ).toHaveLength(0);
+    expect(
+      await db.select().from(followups).where(eq(followups.firma_id, firmaId)),
+    ).toHaveLength(0);
+  });
+
+  it("deleteCompany removes only the target firma's dependents, leaving other companies intact", async () => {
+    const keepId = await addCompany({ name: "Bleibt GmbH" });
+    const dropId = await addCompany({ name: "Geht GmbH" });
+
+    // Give the company we keep a contact+mail+interaction.
+    const keepKontakt = crypto.randomUUID();
+    await db.insert(kontakte).values({
+      id: keepKontakt,
+      firma_id: keepId,
+      name: "Bleibt Kontakt",
+      relevant: false,
+    });
+    await db.insert(kontakt_mails).values({
+      id: crypto.randomUUID(),
+      kontakt_id: keepKontakt,
+      email: "keep@bleibt.at",
+    });
+    await db.insert(interaktionen).values({
+      id: crypto.randomUUID(),
+      firma_id: keepId,
+      datum: new Date().toISOString(),
+      kanal: "Telefon",
+      outcome: "Gesprochen",
+      notiz: "behalten",
+      bearbeiter: "Arthur",
+    });
+
+    await deleteCompany(dropId);
+
+    // The kept company and its dependents survive.
+    expect((await listCompanies()).find((c) => c.id === keepId)).toBeDefined();
+    expect(
+      await db.select().from(kontakte).where(eq(kontakte.firma_id, keepId)),
+    ).toHaveLength(1);
+    expect(
+      await db
+        .select()
+        .from(kontakt_mails)
+        .where(eq(kontakt_mails.kontakt_id, keepKontakt)),
+    ).toHaveLength(1);
+    expect(
+      await db.select().from(interaktionen).where(eq(interaktionen.firma_id, keepId)),
+    ).toHaveLength(1);
+  });
+
+  it("deleteCompany on a company with no dependents just removes the firma (no throw)", async () => {
+    const id = await addCompany({ name: "Allein GmbH" });
+    await expect(deleteCompany(id)).resolves.toBeUndefined();
+    expect((await listCompanies()).find((c) => c.id === id)).toBeUndefined();
   });
 });
