@@ -276,7 +276,7 @@ describe("CompanyTable", () => {
     it("the search input is enabled (not disabled) and starts empty", () => {
       render(<CompanyTable companies={[company({ id: "1", name: "Acme GmbH", status: "Neu" })]} />);
       const input = search() as HTMLInputElement;
-      expect(input).not.toBeDisabled();
+      expect(input.disabled).toBe(false);
       expect(input.value).toBe("");
     });
 

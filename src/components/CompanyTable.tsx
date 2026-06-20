@@ -8,7 +8,7 @@
 // palette, status pills, dead-row dimming, 🔥 as the sole emoji. The ONE wired
 // interaction is the Aktiv / Tot+Geparkt filter (DB-03); everything else (row click,
 // Tel/Mail/in OS actions, search, + Neue Firma, CSV importieren) is render-only this phase.
-import { Fragment, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import type { Company, Contact } from "../data/companies";
 import type { Interaction } from "../data/interactions";
 import type { Status } from "../types";
@@ -21,10 +21,9 @@ import {
 import { CompanyDetail } from "./CompanyDetail";
 import type { LogEntry } from "./LogForm";
 import { openLinkedIn, openMail, openTel } from "../lib/contactActions";
+import { DEAD, visibleCompanies } from "../data/filterSort";
 import { shortDate } from "../utils/date";
 import "./CompanyTable.css";
-
-const DEAD = new Set<Status>(["Tot", "Geparkt"]);
 
 // Status pill → mockup variant class (UI-SPEC Status pill → color map).
 const PILL_VARIANT: Record<Status, string> = {
@@ -63,6 +62,7 @@ export function CompanyTable({
   showDeadInitially = false,
 }: Props) {
   const [showDead, setShowDead] = useState(showDeadInitially);
+  const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   function toggleRow(id: string) {
@@ -73,12 +73,22 @@ export function CompanyTable({
     });
   }
 
-  const visible = companies.filter((c) => showDead || !DEAD.has(c.status as Status));
+  // DB-08 search (D-10) stacked with the dead toggle (D-11), then always-on
+  // 🔥-first German-alpha sort (DB-04, D-12) — all in the pure filterSort module.
+  const visible = useMemo(
+    () => visibleCompanies(companies, contactsByFirma, { search, showDead }),
+    [companies, contactsByFirma, search, showDead],
+  );
 
   return (
     <>
       <div className="toolbar">
-        <input className="search" placeholder="Suchen…" disabled />
+        <input
+          className="search"
+          placeholder="Suchen…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
         <button className="filt on" type="button" disabled>
           Aktiv
         </button>
@@ -235,7 +245,16 @@ export function CompanyTable({
                 </td>
               </tr>
             )}
-            {companies.length > 0 && visible.length === 0 && (
+            {companies.length > 0 && visible.length === 0 && search.trim() && (
+              <tr>
+                <td colSpan={9} className="empty">
+                  <div className="empty-b">
+                    {`Keine Firma passt zu „${search.trim()}".`}
+                  </div>
+                </td>
+              </tr>
+            )}
+            {companies.length > 0 && visible.length === 0 && !search.trim() && (
               <tr>
                 <td colSpan={9} className="empty">
                   <div className="empty-b">
