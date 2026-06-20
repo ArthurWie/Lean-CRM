@@ -39,6 +39,7 @@ function company(over: Partial<Company> & Pick<Company, "id" | "name" | "status"
     website: null,
     lessons: null,
     last_viewed: null,
+    deleted_at: null,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
     ...over,
@@ -809,5 +810,122 @@ describe("CompanyTable", () => {
     // Hot "Zeta" renders before non-hot "Alpha".
     expect(rows[0]).toContain("Zeta GmbH");
     expect(rows[1]).toContain("Alpha GmbH");
+  });
+
+  // --- "Zuletzt gelöscht" trash view (Part B) ---
+  describe("Zuletzt gelöscht trash view", () => {
+    // A soft-deleted company deleted `days` ago.
+    function deleted(
+      over: Partial<Company> & Pick<Company, "id" | "name">,
+      days = 0,
+    ): Company {
+      const ts = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      return company({ status: "Neu", deleted_at: ts, ...over });
+    }
+
+    it("the Zuletzt gelöscht toggle renders the soft-deleted companies, not the active ones", () => {
+      render(
+        <CompanyTable
+          companies={[company({ id: "a", name: "Aktiv GmbH", status: "Neu" })]}
+          deletedCompanies={[deleted({ id: "d", name: "Gelöscht GmbH" })]}
+        />,
+      );
+      // Active list shows the active company, not the deleted one.
+      expect(screen.getByText("Aktiv GmbH")).toBeTruthy();
+      expect(screen.queryByText("Gelöscht GmbH")).toBeNull();
+
+      fireEvent.click(screen.getByRole("button", { name: "Zuletzt gelöscht" }));
+
+      // Trash view: deleted company visible, active one gone.
+      expect(screen.getByText("Gelöscht GmbH")).toBeTruthy();
+      expect(screen.queryByText("Aktiv GmbH")).toBeNull();
+    });
+
+    it("shows 'noch X Tage' for each trashed row (7 minus days since deletion, floored)", () => {
+      render(
+        <CompanyTable
+          companies={[]}
+          deletedCompanies={[
+            deleted({ id: "fresh", name: "Frisch GmbH" }, 0), // noch 7 Tage
+            deleted({ id: "old", name: "Alt GmbH" }, 5), // noch 2 Tage
+          ]}
+          trashViewInitially
+        />,
+      );
+      expect(screen.getByText("noch 7 Tage")).toBeTruthy();
+      expect(screen.getByText("noch 2 Tage")).toBeTruthy();
+    });
+
+    it("clicking Wiederherstellen calls onRestoreCompany with the firma id", () => {
+      const onRestoreCompany = vi.fn();
+      render(
+        <CompanyTable
+          companies={[]}
+          deletedCompanies={[deleted({ id: "d", name: "Zurück GmbH" })]}
+          onRestoreCompany={onRestoreCompany}
+          trashViewInitially
+        />,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Wiederherstellen" }));
+      expect(onRestoreCompany).toHaveBeenCalledWith("d");
+    });
+
+    it("Endgültig löschen requires the inline confirm before calling onPermanentDelete", () => {
+      const onPermanentDelete = vi.fn();
+      render(
+        <CompanyTable
+          companies={[]}
+          deletedCompanies={[deleted({ id: "d", name: "Weg GmbH" })]}
+          onPermanentDelete={onPermanentDelete}
+          trashViewInitially
+        />,
+      );
+      // First click reveals the confirm; nothing deleted yet.
+      fireEvent.click(screen.getByRole("button", { name: "Endgültig löschen" }));
+      expect(onPermanentDelete).not.toHaveBeenCalled();
+      expect(screen.getByText("Wirklich löschen?")).toBeTruthy();
+
+      // Confirming fires the permanent delete with the id.
+      fireEvent.click(screen.getByRole("button", { name: "Ja, löschen" }));
+      expect(onPermanentDelete).toHaveBeenCalledWith("d");
+    });
+
+    it("Abbrechen on the purge confirm does not call onPermanentDelete", () => {
+      const onPermanentDelete = vi.fn();
+      render(
+        <CompanyTable
+          companies={[]}
+          deletedCompanies={[deleted({ id: "d", name: "Bleibt GmbH" })]}
+          onPermanentDelete={onPermanentDelete}
+          trashViewInitially
+        />,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Endgültig löschen" }));
+      fireEvent.click(screen.getByRole("button", { name: "Abbrechen" }));
+      expect(onPermanentDelete).not.toHaveBeenCalled();
+      // Back to the action buttons.
+      expect(screen.getByRole("button", { name: "Endgültig löschen" })).toBeTruthy();
+    });
+
+    it("shows an empty-state when the trash is empty", () => {
+      render(
+        <CompanyTable companies={[]} deletedCompanies={[]} trashViewInitially />,
+      );
+      expect(screen.getByText("Papierkorb ist leer")).toBeTruthy();
+    });
+
+    it("the trash view offers no add / inline-edit / contact actions", () => {
+      render(
+        <CompanyTable
+          companies={[]}
+          deletedCompanies={[deleted({ id: "d", name: "Nur Lesen GmbH" })]}
+          trashViewInitially
+        />,
+      );
+      // No "+ Neue Firma" button and no contact-action cells in trash view.
+      expect(screen.queryByRole("button", { name: "+ Neue Firma" })).toBeNull();
+      expect(screen.queryByText("Tel")).toBeNull();
+      expect(screen.queryByText("Mail")).toBeNull();
+    });
   });
 });

@@ -12,6 +12,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import type { Company, Contact } from "../data/companies";
+import { TRASH_RETENTION_DAYS } from "../data/companies";
 import type { Interaction } from "../data/interactions";
 import type { Status } from "../types";
 import {
@@ -39,6 +40,17 @@ const PILL_VARIANT: Record<Status, string> = {
 };
 
 const EMPTY = "—"; // em dash for empty cells
+
+// "Zuletzt gelöscht": days remaining before auto-purge, given a deleted_at ISO
+// stamp. retention minus whole days elapsed, floored at 0 so an expired-but-not-
+// yet-purged row never shows a negative count. TRASH_RETENTION_DAYS is the single
+// source of truth shared with the data layer's purge.
+function daysLeft(deletedAt: string | null): number {
+  if (!deletedAt) return TRASH_RETENTION_DAYS;
+  const elapsedMs = Date.now() - new Date(deletedAt).getTime();
+  const elapsedDays = Math.floor(elapsedMs / (24 * 60 * 60 * 1000));
+  return Math.max(0, TRASH_RETENTION_DAYS - elapsedDays);
+}
 
 // D-07: the company text fields that are inline-editable on any row. Nächster
 // Schritt / Status / Kontakt are derived/action cells and stay read-only.
@@ -335,6 +347,9 @@ function NotizCell({
 
 type Props = {
   companies: Company[];
+  // "Zuletzt gelöscht": the soft-deleted companies (loaded by App). Rendered in
+  // the trash view; each carries deleted_at so we can show "noch X Tage".
+  deletedCompanies?: Company[];
   // Per-company interactions (loaded by App), keyed by firma id. Drives the
   // derived Notizen/Nächster-Schritt columns, the blue dot, and the detail panel.
   interactionsByFirma?: Record<string, Interaction[]>;
@@ -361,15 +376,22 @@ type Props = {
   // Addition 1 (D-07 amended): called when the Notizen cell edit commits. App
   // rewrites the newest interaction's note (interactionId) + refreshes.
   onEditNote?: (firmaId: string, interactionId: string, text: string) => void;
-  // Addition 2: called when the inline "Löschen" confirm is accepted in the detail
-  // panel. App hard-deletes the company (cascade) + refreshes the list.
+  // Addition 2 / "Zuletzt gelöscht": called when "Löschen" is confirmed (right-
+  // click or detail panel). App now SOFT-deletes (moves to trash) + refreshes.
   onDeleteCompany?: (firmaId: string) => void;
+  // Trash view: restore a soft-deleted company back to the active list.
+  onRestoreCompany?: (firmaId: string) => void;
+  // Trash view: "Endgültig löschen" — permanent hard-delete (cascade).
+  onPermanentDelete?: (firmaId: string) => void;
   // Test-only seam: lets a test render with dead rows already visible.
   showDeadInitially?: boolean;
+  // Test-only seam: lets a test render the "Zuletzt gelöscht" trash view directly.
+  trashViewInitially?: boolean;
 };
 
 export function CompanyTable({
   companies,
+  deletedCompanies = [],
   interactionsByFirma = {},
   contactsByFirma = {},
   onOpenRow,
@@ -378,9 +400,16 @@ export function CompanyTable({
   onEditCell,
   onEditNote,
   onDeleteCompany,
+  onRestoreCompany,
+  onPermanentDelete,
   showDeadInitially = false,
+  trashViewInitially = false,
 }: Props) {
   const [showDead, setShowDead] = useState(showDeadInitially);
+  // "Zuletzt gelöscht": when true, the trash view replaces the normal table.
+  const [trashView, setTrashView] = useState(trashViewInitially);
+  // The trash row currently in its inline "Wirklich löschen?" confirm, or null.
+  const [confirmPurgeId, setConfirmPurgeId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   // DB-07/D-05: the in-progress "+ Neue Firma" draft, or null when not adding.
@@ -477,32 +506,142 @@ export function CompanyTable({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <button className="filt on" type="button" disabled>
+        <button
+          className={!trashView ? "filt on" : "filt"}
+          type="button"
+          aria-pressed={!trashView}
+          onClick={() => setTrashView(false)}
+        >
           Aktiv
         </button>
         <button className="filt" type="button" disabled>
           🔥 Heiß
         </button>
         <button
-          className={showDead ? "filt on" : "filt"}
+          className={!trashView && showDead ? "filt on" : "filt"}
           type="button"
-          aria-pressed={showDead}
-          onClick={() => setShowDead((v) => !v)}
+          aria-pressed={!trashView && showDead}
+          onClick={() => {
+            setTrashView(false);
+            setShowDead((v) => !v);
+          }}
         >
           Tot/Geparkt
+        </button>
+        <button
+          className={trashView ? "filt on" : "filt"}
+          type="button"
+          aria-pressed={trashView}
+          onClick={() => {
+            setTrashView(true);
+            setConfirmPurgeId(null);
+          }}
+        >
+          Zuletzt gelöscht
         </button>
         <button className="impbtn" type="button" disabled>
           CSV importieren
         </button>
-        <button
-          className="addbtn"
-          type="button"
-          onClick={() => setAddDraft((d) => d ?? { ...EMPTY_DRAFT })}
-        >
-          + Neue Firma
-        </button>
+        {/* Add is hidden in the trash view — it is read-only except restore/purge. */}
+        {!trashView && (
+          <button
+            className="addbtn"
+            type="button"
+            onClick={() => setAddDraft((d) => d ?? { ...EMPTY_DRAFT })}
+          >
+            + Neue Firma
+          </button>
+        )}
       </div>
 
+      {trashView && (
+        // "Zuletzt gelöscht": a focused, read-only trash table. Each row shows the
+        // company name + "noch X Tage" until auto-purge, and two text actions —
+        // Wiederherstellen (restore) and Endgültig löschen (permanent, with the
+        // same inline confirm used elsewhere). No add / inline-edit / contact
+        // actions here by design.
+        <div className="tw">
+          <table className="trash-table">
+            <thead>
+              <tr>
+                <th>Unternehmen</th>
+                <th>Verbleibend</th>
+                <th>Aktionen</th>
+              </tr>
+            </thead>
+            <tbody>
+              {deletedCompanies.map((c) => {
+                const left = daysLeft(c.deleted_at);
+                return (
+                  <tr key={c.id} className="r-main r-trash">
+                    <td className="co">
+                      {c.name}
+                      {c.heiss && <span className="fire">🔥</span>}
+                    </td>
+                    <td className="trash-left dim">{`noch ${left} ${
+                      left === 1 ? "Tag" : "Tage"
+                    }`}</td>
+                    <td className="trash-actions">
+                      {confirmPurgeId === c.id ? (
+                        <span className="confirm-del">
+                          Wirklich löschen?{" "}
+                          <button
+                            type="button"
+                            className="del-yes"
+                            onClick={() => {
+                              setConfirmPurgeId(null);
+                              onPermanentDelete?.(c.id);
+                            }}
+                          >
+                            Ja, löschen
+                          </button>
+                          <button
+                            type="button"
+                            className="del-cancel"
+                            onClick={() => setConfirmPurgeId(null)}
+                          >
+                            Abbrechen
+                          </button>
+                        </span>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            className="trash-restore"
+                            onClick={() => onRestoreCompany?.(c.id)}
+                          >
+                            Wiederherstellen
+                          </button>
+                          <button
+                            type="button"
+                            className="trash-purge del-trigger"
+                            onClick={() => setConfirmPurgeId(c.id)}
+                          >
+                            Endgültig löschen
+                          </button>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+              {deletedCompanies.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="empty">
+                    <div className="empty-h">Papierkorb ist leer</div>
+                    <div className="empty-b">
+                      Gelöschte Firmen erscheinen hier und bleiben{" "}
+                      {TRASH_RETENTION_DAYS} Tage wiederherstellbar.
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {!trashView && (
       <div className="tw">
         <table>
           <thead>
@@ -775,6 +914,7 @@ export function CompanyTable({
           </tbody>
         </table>
       </div>
+      )}
 
       {/* Addition 3: the right-click context menu. Fixed-positioned at the cursor.
           Corporate look (sharp 2px corners, muted navy, thin line, text items). Its

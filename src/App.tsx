@@ -8,8 +8,12 @@ import {
   deleteCompany,
   listCompanies,
   listContacts,
+  listDeletedCompanies,
   markViewed,
+  purgeExpiredCompanies,
+  restoreCompany,
   seedIfEmpty,
+  softDeleteCompany,
   updateCompanyField,
   type Company,
   type Contact,
@@ -26,6 +30,8 @@ import "./App.css";
 
 function App() {
   const [companies, setCompanies] = useState<Company[]>([]);
+  // "Zuletzt gelöscht": the soft-deleted companies, loaded for the trash view.
+  const [deletedCompanies, setDeletedCompanies] = useState<Company[]>([]);
   const [interactionsByFirma, setInteractionsByFirma] = useState<
     Record<string, Interaction[]>
   >({});
@@ -39,7 +45,11 @@ function App() {
     (async () => {
       try {
         await seedIfEmpty();
+        // Auto-purge trash older than the retention window BEFORE the first load,
+        // so expired companies never resurface in either list.
+        await purgeExpiredCompanies();
         setCompanies(await listCompanies());
+        setDeletedCompanies(await listDeletedCompanies());
       } catch (e) {
         console.error("Failed to load companies:", e);
         setError("Firmen konnten nicht geladen werden.");
@@ -48,6 +58,13 @@ function App() {
       }
     })();
   }, []);
+
+  // Refresh both the active and the soft-deleted lists. Used after any action
+  // that moves a company between the two (soft-delete, restore, permanent delete).
+  async function refreshLists() {
+    setCompanies(await listCompanies());
+    setDeletedCompanies(await listDeletedCompanies());
+  }
 
   // Load one company's interactions + contacts into the per-firma maps.
   async function loadFirma(firmaId: string) {
@@ -123,16 +140,36 @@ function App() {
     }
   }
 
-  // Addition 2: hard-delete a company (cascade) after the inline confirm, then
-  // reload the list. CompanyTable already closed the detail panel for the deleted
-  // row, and a delete failure leaves the panel closed but the row present (refresh
-  // re-renders the still-existing company), surfacing the problem.
+  // "Zuletzt gelöscht": Löschen now SOFT-deletes — the company moves to the trash
+  // view (recoverable for the retention window) rather than being destroyed. The
+  // right-click and detail-panel "Löschen" both route here. Refresh both lists so
+  // it leaves the active table and appears in "Zuletzt gelöscht".
   async function handleDeleteCompany(firmaId: string) {
     try {
-      await deleteCompany(firmaId);
-      setCompanies(await listCompanies());
+      await softDeleteCompany(firmaId);
+      await refreshLists();
     } catch (e) {
       console.error("Failed to delete company:", e);
+    }
+  }
+
+  // Restore a soft-deleted company from the trash view back to the active list.
+  async function handleRestoreCompany(firmaId: string) {
+    try {
+      await restoreCompany(firmaId);
+      await refreshLists();
+    } catch (e) {
+      console.error("Failed to restore company:", e);
+    }
+  }
+
+  // "Endgültig löschen" from the trash view: the permanent hard-delete cascade.
+  async function handlePermanentDelete(firmaId: string) {
+    try {
+      await deleteCompany(firmaId);
+      await refreshLists();
+    } catch (e) {
+      console.error("Failed to permanently delete company:", e);
     }
   }
 
@@ -192,6 +229,7 @@ function App() {
         ) : (
           <CompanyTable
             companies={companies}
+            deletedCompanies={deletedCompanies}
             interactionsByFirma={interactionsByFirma}
             contactsByFirma={contactsByFirma}
             onOpenRow={handleOpenRow}
@@ -200,6 +238,8 @@ function App() {
             onEditCell={handleEditCell}
             onEditNote={handleEditNote}
             onDeleteCompany={handleDeleteCompany}
+            onRestoreCompany={handleRestoreCompany}
+            onPermanentDelete={handlePermanentDelete}
           />
         )}
       </main>

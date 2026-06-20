@@ -415,3 +415,76 @@ td.editable {
   font-style: italic;
   text-align: center;
 }
+
+/* "Zuletzt gelöscht" trash view. Corporate/Excel look: sharp 2px corners, thin
+   grid lines, text-only actions, muted "noch X Tage". The permanent-delete confirm
+   reuses the SAME confirm-del/del-yes/del-cancel classes as the row context menu
+   so all three delete confirms read identically. */
+.trash-left {
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--faint); /* muted, per spec */
+}
+.trash-actions {
+  white-space: nowrap;
+}
+.trash-restore,
+.trash-purge {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 2px; /* sharp corners */
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--soft);
+  cursor: pointer;
+}
+.trash-restore {
+  margin-right: 8px;
+}
+.trash-restore:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.trash-purge {
+  color: #b3261e; /* muted danger — matches the other delete confirms */
+  border-color: #e3b4b0;
+  background: #fcf3f2;
+}
+.trash-purge:hover {
+  background: #f8e7e5;
+}
+/* The inline "Wirklich löschen?" confirm inside a trash row. */
+.trash-actions .confirm-del {
+  font-size: 12px;
+  color: var(--soft);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.trash-actions .del-yes,
+.trash-actions .del-cancel {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 2px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--soft);
+  cursor: pointer;
+}
+.trash-actions .del-yes {
+  color: #b3261e;
+  border-color: #e3b4b0;
+  background: #fcf3f2;
+}
+.trash-actions .del-yes:hover {
+  background: #f8e7e5;
+}
+.trash-actions .del-cancel:hover {
+  color: var(--ink);
+  border-color: var(--faint);
+}
