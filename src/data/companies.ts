@@ -3,10 +3,12 @@
 // This and src/db/client.ts are the ONLY modules that import drizzle/schema.
 import { db } from "../db/client";
 import { firmen, kontakte, kontakt_mails } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 export type Company = typeof firmen.$inferSelect;
-export type Contact = typeof kontakte.$inferSelect;
+// DATA-04: a contact carries its many emails inline. emails[0] is the primary
+// (D-02) — Mail actions and the table use the first element.
+export type Contact = typeof kontakte.$inferSelect & { emails: string[] };
 
 export async function listCompanies(): Promise<Company[]> {
   // Sorting/filtering is done in the UI for Phase 1.
@@ -17,7 +19,29 @@ export async function listCompanies(): Promise<Company[]> {
 // One company's kontakte rows; the UI renders name/rolle (emails are a separate
 // table not surfaced this phase). Components never call drizzle — they call this.
 export async function listContacts(firmaId: string): Promise<Contact[]> {
-  return db.select().from(kontakte).where(eq(kontakte.firma_id, firmaId));
+  const rows = await db
+    .select()
+    .from(kontakte)
+    .where(eq(kontakte.firma_id, firmaId));
+  if (rows.length === 0) return [];
+
+  // DATA-04: attach each contact's emails. Fetch the mail rows for these
+  // contacts and group by kontakt_id. emails[0] = primary (D-02; preserve the
+  // stored insert order). A contact with no mail rows gets emails: [].
+  const ids = rows.map((k) => k.id);
+  const mails = await db
+    .select()
+    .from(kontakt_mails)
+    .where(inArray(kontakt_mails.kontakt_id, ids));
+
+  const byContact = new Map<string, string[]>();
+  for (const m of mails) {
+    const list = byContact.get(m.kontakt_id) ?? [];
+    list.push(m.email);
+    byContact.set(m.kontakt_id, list);
+  }
+
+  return rows.map((k) => ({ ...k, emails: byContact.get(k.id) ?? [] }));
 }
 
 // DB-05/D-07: record that this firma's detail/history was opened, clearing the
