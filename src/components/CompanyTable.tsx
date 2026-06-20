@@ -20,6 +20,7 @@ import {
 } from "../data/derive";
 import { CompanyDetail } from "./CompanyDetail";
 import type { LogEntry } from "./LogForm";
+import { openLinkedIn, openMail, openTel } from "../lib/contactActions";
 import { shortDate } from "../utils/date";
 import "./CompanyTable.css";
 
@@ -127,8 +128,13 @@ export function CompanyTable({
               const nextStep = deriveNextStep(latest);
               const showDot = hasNewNote(newest, c.last_viewed);
 
-              // First contact's name for the Ansprechpartner column (full list in panel).
-              const apName = contacts.find((k) => k.name)?.name ?? null;
+              // First contact for the Ansprechpartner column + contact actions
+              // (full list lives in the detail panel). emails[0] = primary (D-02).
+              const c0 = contacts.find((k) => k.name) ?? contacts[0];
+              const apName = c0?.name ?? null;
+              const primaryEmail = c0?.emails?.[0] ?? null;
+              const tel = c0?.telefon ?? null;
+              const li = c0?.linkedin ?? null;
 
               const expanded = expandedId === c.id;
 
@@ -147,9 +153,40 @@ export function CompanyTable({
                     <td className="dim">{apName || EMPTY}</td>
                     <td>
                       <span className="cIcons">
-                        <span className="ci off">Tel</span>
-                        <span className="ci off">Mail</span>
-                        <span className="ci off">in</span>
+                        {/* CONTACT-01/02/03: enabled only when data present;
+                            title reveals the value on hover (D-02); click fires
+                            the OS-shell URL and stopPropagation keeps the row
+                            from toggling (Pitfall 3, D-03 no confirmation). */}
+                        <span
+                          className={tel ? "ci tel" : "ci off"}
+                          title={tel ?? undefined}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (tel) openTel(tel);
+                          }}
+                        >
+                          Tel
+                        </span>
+                        <span
+                          className={primaryEmail ? "ci" : "ci off"}
+                          title={primaryEmail ?? undefined}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (primaryEmail) openMail(primaryEmail);
+                          }}
+                        >
+                          Mail
+                        </span>
+                        <span
+                          className={li ? "ci li acc" : "ci off"}
+                          title={li ?? undefined}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (li) openLinkedIn(li);
+                          }}
+                        >
+                          in
+                        </span>
                       </span>
                     </td>
                     <td>
