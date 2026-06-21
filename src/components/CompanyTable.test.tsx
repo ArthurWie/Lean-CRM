@@ -21,7 +21,6 @@ function contact(
     rolle: null,
     telefon: null,
     linkedin: null,
-    li_angenommen: false,
     relevant: false,
     emails: [],
     ...over,
@@ -462,6 +461,21 @@ describe("CompanyTable", () => {
       fireEvent.change(input, { target: { value: "Beratung" } });
       fireEvent.keyDown(input, { key: "Enter" });
       expect(onEditCell).toHaveBeenCalledWith("1", { branche: "Beratung" });
+    });
+
+    // Entering edit mode must move focus into the input (WebView2 ref-focus, not
+    // the autoFocus attribute). Pins the hook-extracted focus behavior so the
+    // useInlineEdit refactor can't silently drop it.
+    it("clicking a cell to edit moves focus into the input", () => {
+      render(
+        <CompanyTable
+          companies={[company({ id: "1", name: "Acme GmbH", status: "Offen", branche: "IT" })]}
+          onEditCell={vi.fn()}
+        />,
+      );
+      fireEvent.click(screen.getByText("IT"));
+      const input = screen.getByDisplayValue("IT");
+      expect(document.activeElement).toBe(input);
     });
 
     it("Escape cancels an inline edit without calling onEditCell", () => {

@@ -10,7 +10,11 @@
 // and — this plan — "+ Neue Firma" inline-add (DB-07/D-05) plus inline cell editing
 // (D-07). CSV importieren stays render-only (Phase 5).
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import type { MouseEvent as ReactMouseEvent } from "react";
+import type {
+  ChangeEvent,
+  KeyboardEvent as ReactKeyboardEvent,
+  MouseEvent as ReactMouseEvent,
+} from "react";
 import type { Company, Contact } from "../data/companies";
 import { TRASH_RETENTION_DAYS } from "../data/companies";
 import type { Interaction } from "../data/interactions";
@@ -86,43 +90,36 @@ type EditableCellProps = {
   onCommit: (next: string) => boolean | void;
 };
 
-// An inline-editable table cell: click to edit, render an input in place,
-// commit-on-blur, Enter commits, Escape cancels (UI-SPEC §3). The click
-// stopPropagation's so editing a cell never toggles the row detail panel.
-function EditableCell({
-  value,
-  className,
-  placeholder,
-  onCommit,
-}: EditableCellProps) {
+// The inline-edit state machine shared by the three click-to-reveal table cells
+// (EditableCell / NameCell / NotizCell). Holds the editing toggle, the draft, the
+// focus-on-enter effect, and the single-shot `handled` guard that makes WebView2's
+// trailing unmount-blur a no-op — so Enter never double-writes and Escape never
+// commits the discarded draft. Returns the <input> wiring all three share verbatim
+// (`inputProps`); each cell renders only its own markup + placeholder. begin(seed)
+// enters edit mode with the seed text; onCommit's falsy return reverts (the parent
+// rejects, e.g. a required field gone empty).
+function useInlineEdit(onCommit: (next: string) => boolean | void) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
-  // Single-shot guard: once we commit OR cancel, the input may still emit a
-  // trailing onBlur as it unmounts (WebView2 dispatches the native blur on
-  // teardown in a different order than Chromium). This ref makes that trailing
-  // blur a no-op so Enter never double-writes and Escape never accidentally
-  // commits the discarded draft.
   const handled = useRef(false);
 
-  // Focus + select the text on entering edit mode. Explicit focus via a ref is
-  // more reliable than the `autoFocus` attribute inside a freshly re-rendered
-  // table in WebView2, and selecting the text gives the Excel-like "click then
-  // type to replace" feel.
+  // Focus + select the text on entering edit mode (explicit ref focus is more
+  // reliable than `autoFocus` inside a re-rendered table in WebView2, and the
+  // select gives the Excel-like "click then type to replace" feel), and reset the
+  // single-shot guard so the next commit/cancel runs.
   useEffect(() => {
-    if (editing) {
-      handled.current = false;
-      const el = inputRef.current;
-      if (el) {
-        el.focus();
-        el.select();
-      }
+    if (!editing) return;
+    handled.current = false;
+    const el = inputRef.current;
+    if (el) {
+      el.focus();
+      el.select();
     }
   }, [editing]);
 
-  function begin(e: ReactMouseEvent) {
-    e.stopPropagation(); // never toggle the row
-    setDraft(value ?? "");
+  function begin(seed: string) {
+    setDraft(seed);
     setEditing(true);
   }
 
@@ -139,33 +136,56 @@ function EditableCell({
     setEditing(false); // revert: never call onCommit
   }
 
+  // The input wiring every cell shares. onClick stopPropagation keeps editing a
+  // cell from toggling the row detail panel.
+  const inputProps = {
+    ref: inputRef,
+    className: "cell-input",
+    value: draft,
+    onChange: (e: ChangeEvent<HTMLInputElement>) => setDraft(e.target.value),
+    onClick: (e: ReactMouseEvent) => e.stopPropagation(),
+    onBlur: commit,
+    onKeyDown: (e: ReactKeyboardEvent) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        commit();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        cancel();
+      }
+    },
+  };
+
+  return { editing, begin, inputProps };
+}
+
+// An inline-editable table cell: click to edit, render an input in place,
+// commit-on-blur, Enter commits, Escape cancels (UI-SPEC §3). The click
+// stopPropagation's so editing a cell never toggles the row detail panel.
+function EditableCell({
+  value,
+  className,
+  placeholder,
+  onCommit,
+}: EditableCellProps) {
+  const { editing, begin, inputProps } = useInlineEdit(onCommit);
+
   if (editing) {
     return (
       <td className={className} onClick={(e) => e.stopPropagation()}>
-        <input
-          ref={inputRef}
-          className="cell-input"
-          value={draft}
-          placeholder={placeholder}
-          onChange={(e) => setDraft(e.target.value)}
-          onClick={(e) => e.stopPropagation()}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              commit();
-            } else if (e.key === "Escape") {
-              e.preventDefault();
-              cancel();
-            }
-          }}
-        />
+        <input {...inputProps} placeholder={placeholder} />
       </td>
     );
   }
 
   return (
-    <td className={className ? `${className} editable` : "editable"} onClick={begin}>
+    <td
+      className={className ? `${className} editable` : "editable"}
+      onClick={(e) => {
+        e.stopPropagation();
+        begin(value ?? "");
+      }}
+    >
       {value || EMPTY}
     </td>
   );
@@ -183,58 +203,12 @@ function NameCell({
   heiss: boolean;
   onCommit: (next: string) => boolean | void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
-  // See EditableCell: guards the trailing unmount-blur so Enter never
-  // double-commits and Escape never commits the discarded draft.
-  const handled = useRef(false);
-
-  useEffect(() => {
-    if (editing) {
-      handled.current = false;
-      const el = inputRef.current;
-      if (el) {
-        el.focus();
-        el.select();
-      }
-    }
-  }, [editing]);
-
-  function commit() {
-    if (handled.current) return;
-    handled.current = true;
-    onCommit(draft.trim()); // empty is rejected upstream (D-06) → reverts
-    setEditing(false);
-  }
-
-  function cancel() {
-    if (handled.current) return;
-    handled.current = true;
-    setEditing(false);
-  }
+  const { editing, begin, inputProps } = useInlineEdit(onCommit);
 
   if (editing) {
     return (
       <td className="co" onClick={(e) => e.stopPropagation()}>
-        <input
-          ref={inputRef}
-          className="cell-input"
-          value={draft}
-          placeholder="Unternehmen"
-          onChange={(e) => setDraft(e.target.value)}
-          onClick={(e) => e.stopPropagation()}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              commit();
-            } else if (e.key === "Escape") {
-              e.preventDefault();
-              cancel();
-            }
-          }}
-        />
+        <input {...inputProps} placeholder="Unternehmen" />
       </td>
     );
   }
@@ -244,8 +218,7 @@ function NameCell({
       className="co editable"
       onClick={(e) => {
         e.stopPropagation();
-        setDraft(name);
-        setEditing(true);
+        begin(name);
       }}
     >
       {name}
@@ -274,57 +247,13 @@ function NotizCell({
   notiz: string;
   onCommit: (next: string) => boolean | void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
-  const handled = useRef(false);
-
-  useEffect(() => {
-    if (editing) {
-      handled.current = false;
-      const el = inputRef.current;
-      if (el) {
-        el.focus();
-        el.select();
-      }
-    }
-  }, [editing]);
-
-  function commit() {
-    if (handled.current) return;
-    handled.current = true;
-    onCommit(draft.trim());
-    setEditing(false);
-  }
-
-  function cancel() {
-    if (handled.current) return;
-    handled.current = true;
-    setEditing(false);
-  }
+  const { editing, begin, inputProps } = useInlineEdit(onCommit);
 
   if (editing) {
     return (
       <td className="notiz dim" onClick={(e) => e.stopPropagation()}>
         <span className="src">{header}</span>
-        <input
-          ref={inputRef}
-          className="cell-input"
-          value={draft}
-          placeholder="Notiz"
-          onChange={(e) => setDraft(e.target.value)}
-          onClick={(e) => e.stopPropagation()}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              commit();
-            } else if (e.key === "Escape") {
-              e.preventDefault();
-              cancel();
-            }
-          }}
-        />
+        <input {...inputProps} placeholder="Notiz" />
       </td>
     );
   }
@@ -334,8 +263,7 @@ function NotizCell({
       className="notiz dim editable"
       onClick={(e) => {
         e.stopPropagation();
-        setDraft(notiz);
-        setEditing(true);
+        begin(notiz);
       }}
     >
       {showDot && <span className="ndot" />}
