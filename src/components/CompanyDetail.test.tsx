@@ -25,7 +25,7 @@ function interaction(
     kanal: "Telefon",
     outcome: "Gesprochen",
     notiz: "",
-    bearbeiter: "Arthur",
+    bearbeiter: "Max",
     ...over,
   } as Interaction;
 }
@@ -57,7 +57,7 @@ describe("CompanyDetail", () => {
     );
     expect(screen.getByText("Verlauf (Notizen)")).toBeTruthy();
     const hist = document.querySelector(".hist") as HTMLElement;
-    const lines = within(hist).getAllByText(/Arthur|enthusiastisch|angenommen/);
+    const lines = within(hist).getAllByText(/Max|enthusiastisch|angenommen/);
     // The two notes both render; newest (Telefon 09.06) appears before the older one.
     const text = hist.textContent ?? "";
     expect(text.indexOf("Sehr enthusiastisch.")).toBeLessThan(

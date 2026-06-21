@@ -458,7 +458,7 @@ function App() {
     <div className="app">
       <aside className="sidebar">
         <div className="brand">
-          <span className="dot" /> ClickWise
+          <span className="dot" /> Lean CRM
         </div>
         <button
           className={view === "db" ? "nav active" : "nav"}

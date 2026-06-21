@@ -3,7 +3,7 @@ import { daysOverdue } from "./date";
 
 // daysOverdue does DATE-ONLY day math in UTC (Pitfall 3): both the stored
 // timestamp and `now` are floored to their UTC calendar day before subtracting,
-// so a non-zero local offset on Arthur's UTC+1/+2 machine never shifts the day.
+// so a non-zero local offset on a European UTC+1/+2 machine never shifts the day.
 describe("daysOverdue", () => {
   it("returns 0 for a follow-up due today (same UTC calendar day)", () => {
     expect(

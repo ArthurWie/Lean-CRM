@@ -306,7 +306,7 @@ describe("companies data layer", () => {
       kanal: "Telefon",
       outcome: "Gesprochen",
       notiz: "x",
-      bearbeiter: "Arthur",
+      bearbeiter: "Max",
     });
     await db.insert(followups).values({
       id: crypto.randomUUID(),
@@ -364,7 +364,7 @@ describe("companies data layer", () => {
       kanal: "Telefon",
       outcome: "Gesprochen",
       notiz: "behalten",
-      bearbeiter: "Arthur",
+      bearbeiter: "Max",
     });
 
     await deleteCompany(dropId);
@@ -506,7 +506,7 @@ describe("companies data layer", () => {
       kanal: "Telefon",
       outcome: "Gesprochen",
       notiz: "x",
-      bearbeiter: "Arthur",
+      bearbeiter: "Max",
     });
     await softDeleteCompany(id);
     await setDeletedDaysAgo(id, 10);

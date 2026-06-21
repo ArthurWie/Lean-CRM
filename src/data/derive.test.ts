@@ -35,7 +35,7 @@ function interaction(
     kanal: "Telefon",
     outcome: "Gesprochen",
     notiz: "Note text",
-    bearbeiter: "Arthur",
+    bearbeiter: "Max",
     ...over,
   };
 }
@@ -183,20 +183,20 @@ describe("deriveNewestNote (DB-05 / D-08)", () => {
       id: "old",
       datum: "2026-06-01T09:00:00.000Z",
       kanal: "Telefon",
-      bearbeiter: "Arthur",
+      bearbeiter: "Max",
       notiz: "alt",
     });
     const newer = interaction({
       id: "new",
       datum: "2026-06-15T09:00:00.000Z",
       kanal: "E-Mail",
-      bearbeiter: "Arthur",
+      bearbeiter: "Max",
       notiz: "neu",
     });
     expect(deriveNewestNote([older, newer])).toEqual({
       datum: "2026-06-15T09:00:00.000Z",
       kanal: "E-Mail",
-      bearbeiter: "Arthur",
+      bearbeiter: "Max",
       notiz: "neu",
     });
   });
@@ -207,14 +207,14 @@ describe("deriveNewestNote (DB-05 / D-08)", () => {
     ).toEqual({
       datum: "2026-06-10T09:00:00.000Z",
       kanal: "",
-      bearbeiter: "Arthur",
+      bearbeiter: "Max",
       notiz: "",
     });
   });
 });
 
 describe("hasNewNote (DB-05 / D-07)", () => {
-  const newest = { datum: "2026-06-15T09:00:00.000Z", kanal: "Telefon", bearbeiter: "Arthur", notiz: "x" };
+  const newest = { datum: "2026-06-15T09:00:00.000Z", kanal: "Telefon", bearbeiter: "Max", notiz: "x" };
 
   it("is false when there is no newest note (DB-05)", () => {
     expect(hasNewNote(null, null)).toBe(false);

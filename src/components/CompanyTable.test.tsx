@@ -54,7 +54,7 @@ function interaction(
     kanal: "Telefon",
     outcome: "Gesprochen",
     notiz: "",
-    bearbeiter: "Arthur",
+    bearbeiter: "Max",
     ...over,
   } as Interaction;
 }

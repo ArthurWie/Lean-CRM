@@ -1,6 +1,6 @@
 // Shared date display helpers. Stored ISO timestamps are UTC; display helpers
 // MUST read UTC fields (getUTC*) so a non-zero local offset never shifts the
-// rendered day/month. Arthur runs this on a European (UTC+1/+2) machine, where
+// rendered day/month. This runs on a European (UTC+1/+2) machine, where
 // local getters would render midnight-UTC timestamps as the prior day.
 
 // "2026-06-09T08:00:00Z" → "09.06." (Notizen column + history line date shape).
@@ -14,7 +14,7 @@ export function shortDate(iso: string): string {
 // Whole-day difference between today and a stored follow-up timestamp, DATE-ONLY
 // in UTC. Both the stored ISO and `now` are floored to their UTC calendar day
 // (Date.UTC(getUTCFullYear, getUTCMonth, getUTCDate)) before subtracting, so a
-// non-zero local offset never shifts the day boundary on Arthur's UTC+1/+2
+// non-zero local offset never shifts the day boundary on a European UTC+1/+2
 // machine (Pitfall 3 — the same UTC-only rule shortDate follows above).
 //   0  = "heute fällig" (due today)
 //   >0 = overdue days

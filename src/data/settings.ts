@@ -37,7 +37,7 @@ export async function setSetting(key: string, value: string): Promise<void> {
 }
 
 /**
- * The configured logging name, or "" (empty string) when unset — never "Arthur".
+ * The configured logging name, or "" (empty string) when unset — never a hard-coded default.
  * "" is intentional: logInteraction stamps it into bearbeiter (NOT NULL column),
  * recording "no configured name yet" without violating the constraint.
  */

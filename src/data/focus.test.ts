@@ -107,7 +107,7 @@ async function seedInteraction(firmaId: string): Promise<void> {
     kanal: "Telefon",
     outcome: "Gesprochen",
     notiz: "x",
-    bearbeiter: "Arthur",
+    bearbeiter: "Max",
   });
 }
 

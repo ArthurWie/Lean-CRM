@@ -132,7 +132,7 @@ describe("interactions data layer", () => {
     expect(firma.updated_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
-  it("logInteraction records bearbeiter '' (blank) when no name is configured — never 'Arthur' (SET-02/D6-03)", async () => {
+  it("logInteraction records bearbeiter '' (blank) when no name is configured — never a hard-coded default (SET-02/D6-03)", async () => {
     bearbeiterValue.current = ""; // unset
     const firmaId = await seedFirma();
     await logInteraction({
@@ -148,7 +148,6 @@ describe("interactions data layer", () => {
       .where(eq(interaktionen.firma_id, firmaId));
     expect(rows).toHaveLength(1);
     expect(rows[0].bearbeiter).toBe("");
-    expect(rows[0].bearbeiter).not.toBe("Arthur");
   });
 
   it("logInteraction with a follow-up inserts a followups row with erledigt false (LOG-03)", async () => {

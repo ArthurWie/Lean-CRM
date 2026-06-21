@@ -98,10 +98,9 @@ describe("settings data layer", () => {
     expect(ctrl).toHaveLength(0);
   });
 
-  it("getBearbeiter returns '' when unset — never 'Arthur'", async () => {
+  it("getBearbeiter returns '' when unset — never a hard-coded default", async () => {
     const b = await getBearbeiter();
     expect(b).toBe("");
-    expect(b).not.toBe("Arthur");
   });
 
   it("setBearbeiter then getBearbeiter round-trips the configured name", async () => {

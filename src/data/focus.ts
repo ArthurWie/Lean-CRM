@@ -117,7 +117,7 @@ export async function resolveDueFollowups(
 ): Promise<void> {
   // End-of-today UTC bound: a midnight-UTC "today" follow-up resolves, a future
   // one does not (Pitfall 4). Built with Date.UTC so the local offset never
-  // shifts the day on Arthur's UTC+1/+2 machine.
+  // shifts the day on a European UTC+1/+2 machine.
   const endOfTodayUtc = new Date(
     Date.UTC(
       now.getUTCFullYear(),

@@ -522,7 +522,7 @@ describe("clearAllData (D-08)", () => {
       kanal: "Telefon",
       outcome: "Gesprochen",
       notiz: "x",
-      bearbeiter: "Arthur",
+      bearbeiter: "Max",
     });
     await db.insert(followups).values({
       id: crypto.randomUUID(),

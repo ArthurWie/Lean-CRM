@@ -136,9 +136,8 @@ describe("LogForm", () => {
   it("renders the passed bearbeiter name in the 'Wird erfasst als' line (SET-02)", () => {
     render(<LogForm onSave={vi.fn()} bearbeiter="Eva" />);
     expect(screen.getByText(/Wird erfasst als/)).toBeTruthy();
-    // The name is rendered (bolded) and is NOT "Arthur".
+    // Only the passed-in name is rendered (bolded) — no hard-coded default leaks in.
     expect(screen.getByText("Eva")).toBeTruthy();
-    expect(screen.queryByText("Arthur")).toBeNull();
   });
 
   it("shows the unset nudge (not a name, not the danger color) when bearbeiter is blank (D6-03)", () => {
