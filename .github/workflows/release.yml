@@ -1,0 +1,62 @@
+name: release
+
+# Tag-triggered. Push a v* tag (e.g. v0.1.0) → Windows runner builds the .exe,
+# macOS runner builds the .dmg, both attach to the same GitHub Release.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write  # tauri-action needs this to create the release + upload assets
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest    # Apple Silicon → aarch64 .dmg
+            args: '--target aarch64-apple-darwin'
+            rust-target: 'aarch64-apple-darwin'
+          - platform: windows-latest  # → NSIS .exe
+            args: ''
+            rust-target: ''
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-target }}
+
+      - name: Install frontend deps
+        run: npm install
+
+      # ponytail: unsigned/ad-hoc build — fine for personal use. Add Apple Developer
+      # ID + ANTHROPIC-style signing env only if distributing the dmg to others.
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Lean CRM ${{ github.ref_name }}'
+          releaseBody: |
+            Lean CRM ${{ github.ref_name }}
+
+            **macOS (.dmg, Apple Silicon):** unsigned — after download run:
+            `xattr -dr com.apple.quarantine "/Applications/Lean CRM.app"`
+            (or System Settings → Privacy & Security → Open Anyway)
+
+            **Windows (.exe):** unsigned — SmartScreen → More info → Run anyway.
+
+            Your data lives at (and is NOT removed on uninstall):
+            - Windows: `%APPDATA%\com.leancrm.crm\leancrm.db`
+            - macOS: `~/Library/Application Support/com.leancrm.crm/leancrm.db`
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}
