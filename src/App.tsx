@@ -44,11 +44,16 @@ import {
   type ClassifiedRow,
   type Candidate,
 } from "./data/import";
+import { getBearbeiter, setBearbeiter } from "./data/settings";
 import { CompanyTable } from "./components/CompanyTable";
 import { FocusView } from "./components/FocusView";
+import { Einstellungen } from "./components/Einstellungen";
 import { ImportDialog, type ImportDialogMode } from "./components/ImportDialog";
 import type { LogEntry } from "./components/LogForm";
 import "./App.css";
+
+// The three top-level views (replaces the old 2-way focusOpen boolean).
+type View = "db" | "focus" | "settings";
 
 function App() {
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -62,9 +67,15 @@ function App() {
   >({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // The active top-level view (Datenbank / Fokus / Einstellungen). Replaces the
+  // old 2-way focusOpen boolean (D6-05).
+  const [view, setView] = useState<View>("db");
+  // The configured "Erfasst als" name, read once on load via settings.ts and
+  // passed down to Einstellungen AND the LogForm (DATA-02: App owns the read/
+  // write; the components never import settings). "" = unset.
+  const [bearbeiter, setBearbeiterState] = useState("");
   // Focus mode (Plan 04-03). focusSnapshot is the one-time ordered call stream
   // (getFocusSnapshot, read ONCE on open — D-07, never re-queried mid-session).
-  const [focusOpen, setFocusOpen] = useState(false);
   const [focusSnapshot, setFocusSnapshot] = useState<FocusCompany[]>([]);
   // CSV import (Plan 05-02). One state slot drives the shared ImportDialog: null =
   // closed; otherwise { mode, rows }. "preview" → "report" reuses the SAME dialog
@@ -73,8 +84,6 @@ function App() {
     mode: ImportDialogMode;
     rows: ClassifiedRow[];
   } | null>(null);
-  // D-08: the sidebar-footer "Alle Daten löschen" two-step inline confirm.
-  const [confirmClearAll, setConfirmClearAll] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -85,6 +94,8 @@ function App() {
         await purgeExpiredCompanies();
         setCompanies(await listCompanies());
         setDeletedCompanies(await listDeletedCompanies());
+        // D6-03: read the configured logging name once on load.
+        setBearbeiterState(await getBearbeiter());
       } catch (e) {
         console.error("Failed to load companies:", e);
         setError("Firmen konnten nicht geladen werden.");
@@ -165,7 +176,7 @@ function App() {
       // Eager per-firma load over the bounded snapshot so every served company's
       // contacts/notes are ready (no empty panel on advance — Pitfall 6).
       await Promise.all(snapshot.map((c) => loadFirma(c.id)));
-      setFocusOpen(true);
+      setView("focus");
     } catch (e) {
       console.error("Failed to open Focus mode:", e);
       setError("Fokus-Modus konnte nicht geöffnet werden.");
@@ -203,11 +214,24 @@ function App() {
     // for every snapshot company were eagerly loaded on open, so nothing to fetch.
   }
 
-  // Close Focus: refresh BOTH lists so the table's derived columns (status /
-  // Notizen / Nächster Schritt) reflect the logs made in Focus mode.
+  // Close Focus → back to Datenbank: refresh BOTH lists so the table's derived
+  // columns (status / Notizen / Nächster Schritt) reflect the logs made in Focus.
   async function handleCloseFocus() {
-    setFocusOpen(false);
+    setView("db");
     await refreshLists();
+  }
+
+  // D6-03: persist the configured logging name, then update App state so the
+  // LogForm + Einstellungen reflect it without a reload. App owns the write
+  // (settings.ts) — Einstellungen never imports settings (DATA-02).
+  async function handleSaveBearbeiter(name: string) {
+    try {
+      await setBearbeiter(name);
+      setBearbeiterState(name);
+    } catch (e) {
+      console.error("Failed to save bearbeiter:", e);
+      setError("Einstellung konnte nicht gespeichert werden.");
+    }
   }
 
   // DB-07 / D-05: manual add via "+ Neue Firma". Persist the new company (Status
@@ -404,8 +428,10 @@ function App() {
     }
   }
 
-  // D-08: "Alle Daten löschen" — hard-reset the DB behind the two-step confirm,
-  // then refresh so the table falls through to its existing empty state (5c).
+  // D6-01: "Alle Daten löschen" — hard-reset the DB. The friction now lives in
+  // the Einstellungen Daten danger zone (type-to-confirm "LÖSCHEN"); this handler
+  // just performs the reset and refreshes so the table falls through to its
+  // existing empty state.
   async function handleClearAll() {
     try {
       await clearAllData();
@@ -415,10 +441,18 @@ function App() {
     } catch (e) {
       console.error("Failed to clear all data:", e);
       setError("Daten konnten nicht gelöscht werden.");
-    } finally {
-      setConfirmClearAll(false);
     }
   }
+
+  // Stillgelegte Firmen: the Tot/Geparkt companies, derived from the loaded
+  // active list (listCompanies includes them — only soft-deleted are excluded).
+  // View-only in Einstellungen (DATA-05: no new manual-status surface).
+  const stillgelegte = companies.filter(
+    (c) => c.status === "Tot" || c.status === "Geparkt",
+  );
+
+  const headTitle =
+    view === "focus" ? "Fokus" : view === "settings" ? "Einstellungen" : "Datenbank";
 
   return (
     <div className="app">
@@ -427,53 +461,29 @@ function App() {
           <span className="dot" /> ClickWise
         </div>
         <button
-          className={focusOpen ? "nav" : "nav active"}
+          className={view === "db" ? "nav active" : "nav"}
           type="button"
           onClick={handleCloseFocus}
         >
           Datenbank
         </button>
         <button
-          className={focusOpen ? "nav active" : "nav"}
+          className={view === "focus" ? "nav active" : "nav"}
           type="button"
           onClick={handleOpenFocus}
         >
           Fokus
         </button>
+        <button
+          className={view === "settings" ? "nav active" : "nav"}
+          type="button"
+          onClick={() => setView("settings")}
+        >
+          Einstellungen
+        </button>
         <div className="nav-foot">
-          {/* D-08: the single most dangerous action, parked low-emphasis in the
-              sidebar footer (out of the main toolbar) behind the established
-              two-step inline confirm (del-trigger → del-yes/del-cancel, 2px
-              corners, #b3261e — the global classes from CompanyDetail.css). */}
-          <div className="clear-all">
-            {confirmClearAll ? (
-              <span className="confirm-del">
-                Wirklich alle Firmen löschen?{" "}
-                <button
-                  type="button"
-                  className="del-yes"
-                  onClick={handleClearAll}
-                >
-                  Ja, löschen
-                </button>
-                <button
-                  type="button"
-                  className="del-cancel"
-                  onClick={() => setConfirmClearAll(false)}
-                >
-                  Abbrechen
-                </button>
-              </span>
-            ) : (
-              <button
-                type="button"
-                className="del-trigger"
-                onClick={() => setConfirmClearAll(true)}
-              >
-                Alle Daten löschen
-              </button>
-            )}
-          </div>
+          {/* D6-01: the clear-all moved OUT of the sidebar footer into the
+              Einstellungen Daten danger zone, behind a type-to-confirm word. */}
           <div className="nav-foot-meta">
             Lean v3
             <br />
@@ -485,7 +495,7 @@ function App() {
       <main className="main">
         <div className="head">
           <div>
-            <h1>{focusOpen ? "Fokus" : "Datenbank"}</h1>
+            <h1>{headTitle}</h1>
           </div>
           <div className="sub">{companies.length} Firmen</div>
         </div>
@@ -500,14 +510,22 @@ function App() {
           </div>
         ) : loading ? (
           <div className="state-loading">Lädt…</div>
-        ) : focusOpen ? (
+        ) : view === "focus" ? (
           <FocusView
             snapshot={focusSnapshot}
             contactsByFirma={contactsByFirma}
             interactionsByFirma={interactionsByFirma}
+            bearbeiter={bearbeiter}
             onSaveAndNext={handleFocusSave}
             onSkip={handleFocusSkip}
             onClose={handleCloseFocus}
+          />
+        ) : view === "settings" ? (
+          <Einstellungen
+            bearbeiter={bearbeiter}
+            onSaveBearbeiter={handleSaveBearbeiter}
+            stillgelegte={stillgelegte}
+            onClearAll={handleClearAll}
           />
         ) : (
           <CompanyTable
@@ -515,6 +533,7 @@ function App() {
             deletedCompanies={deletedCompanies}
             interactionsByFirma={interactionsByFirma}
             contactsByFirma={contactsByFirma}
+            bearbeiter={bearbeiter}
             onOpenRow={handleOpenRow}
             onSave={handleSave}
             onAddCompany={handleAddCompany}

@@ -1,0 +1,117 @@
+/* Einstellungen view. Reuses direction-B tokens + existing classes verbatim
+   (.filt tab strip, .cell-input fields, .save button, .danger-zone, .del-yes,
+   .stp.tot, .row-dead). No new color / font / radius — only layout glue. */
+
+.settings {
+  max-width: 640px;
+}
+
+/* Tab strip — the .filt pills sit in a row with the standard sm gap. */
+.settings-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+
+.settings-sec {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px;
+}
+
+/* Uppercase 11px section label — mirrors the .dcol h4 pattern. */
+.settings-sec h4 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--faint);
+  margin: 0 0 14px;
+}
+
+/* A labelled field: the label sits above its input. */
+.settings-field {
+  display: block;
+  margin-bottom: 8px;
+}
+.settings-field-label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--soft);
+  margin-bottom: 6px;
+}
+.settings-field .cell-input {
+  width: 100%;
+  font-size: 13px;
+}
+.settings-field code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: var(--ink);
+}
+
+/* Helper + the unset nudge — both muted, the nudge a touch fainter. Never the
+   danger color (UI-SPEC). */
+.settings-help {
+  font-size: 12px;
+  color: var(--soft);
+  margin: 0 0 14px;
+}
+.settings-nudge {
+  font-size: 12px;
+  color: var(--faint);
+  margin: 0 0 14px;
+}
+
+/* Stillgelegte Firmen — view-only dead-dimmed rows with a .stp.tot pill. */
+.still-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.still-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.still-row:last-child {
+  border-bottom: none;
+}
+.still-name {
+  color: var(--dead);
+  font-size: 13px;
+}
+
+.settings-empty-h {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--soft);
+  margin-bottom: 4px;
+}
+.settings-empty-b {
+  font-size: 12.5px;
+  color: var(--faint);
+  line-height: 1.45;
+}
+
+/* Daten danger zone — the lead-in carries the muted-danger ink so the section
+   reads as restrained-destructive without shouting. The button reuses .del-yes;
+   :disabled mirrors the established ~0.45 opacity gate. */
+.settings-danger-lead {
+  font-size: 12.5px;
+  color: #b3261e;
+  margin: 0 0 12px;
+}
+.settings-sec .danger-zone {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+.settings-sec .del-yes:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

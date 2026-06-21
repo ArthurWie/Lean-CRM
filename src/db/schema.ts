@@ -57,7 +57,7 @@ export const interaktionen = sqliteTable("interaktionen", {
   notiz: text("notiz"),
   // D6-03: no DB-level default name. Stays NOT NULL — the data layer always
   // supplies a value (the configured name, or "" when unset), so the constraint
-  // still holds while the single-user "Arthur" default is gone.
+  // still holds while the old single-user default is gone.
   bearbeiter: text("bearbeiter").notNull(),
 });
 

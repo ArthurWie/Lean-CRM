@@ -415,6 +415,10 @@ type Props = {
   // parseCsv → validateHeader → classifyRows → preview. The table never touches
   // the data layer (DATA-02) — it only hands the File up.
   onImport?: (file: File) => void;
+  // D6-03: the configured "Erfasst als" name, threaded down to the embedded
+  // CompanyDetail → LogForm. Optional (default "") so existing tests get the
+  // unset nudge. App supplies the real value (read via settings.ts).
+  bearbeiter?: string;
   // Test-only seam: lets a test render with dead rows already visible.
   showDeadInitially?: boolean;
   // Test-only seam: lets a test render the "Zuletzt gelöscht" trash view directly.
@@ -440,6 +444,7 @@ export function CompanyTable({
   onSetContactEmails,
   onOpenFocus,
   onImport,
+  bearbeiter = "",
   showDeadInitially = false,
   trashViewInitially = false,
 }: Props) {
@@ -931,6 +936,7 @@ export function CompanyTable({
                         <CompanyDetail
                           contacts={contacts}
                           interactions={interactions}
+                          bearbeiter={bearbeiter}
                           onSave={(entry) => onSave?.(c.id, entry)}
                           onDelete={
                             onDeleteCompany
