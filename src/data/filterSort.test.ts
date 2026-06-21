@@ -33,7 +33,6 @@ function contact(
     rolle: null,
     telefon: null,
     linkedin: null,
-    li_angenommen: false,
     relevant: false,
     emails: [],
     ...over,

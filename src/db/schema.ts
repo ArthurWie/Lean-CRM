@@ -30,9 +30,6 @@ export const kontakte = sqliteTable("kontakte", {
   rolle: text("rolle"),
   telefon: text("telefon"),
   linkedin: text("linkedin"),
-  li_angenommen: integer("li_angenommen", { mode: "boolean" })
-    .notNull()
-    .default(false),
   relevant: integer("relevant", { mode: "boolean" }).notNull().default(false),
 });
 

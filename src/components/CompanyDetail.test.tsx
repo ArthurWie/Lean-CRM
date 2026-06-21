@@ -10,7 +10,6 @@ function contact(over: Partial<Contact> & Pick<Contact, "id" | "firma_id" | "nam
     rolle: null,
     telefon: null,
     linkedin: null,
-    li_angenommen: false,
     relevant: false,
     emails: [],
     ...over,

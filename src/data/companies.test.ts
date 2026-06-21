@@ -69,7 +69,6 @@ const {
   listCompanies,
   listContacts,
   markViewed,
-  setManualStatus,
   addCompany,
   updateCompanyField,
   deleteCompany,
@@ -183,22 +182,6 @@ describe("companies data layer", () => {
     const untouched = after.find((c) => c.id === other.id)!;
     expect(viewed.last_viewed).toMatch(/^\d{4}-\d{2}-\d{2}T/); // UTC ISO
     expect(untouched.last_viewed).toBeNull(); // only the target firma changed
-  });
-
-  it("setManualStatus sets the sticky Geparkt override (D-02)", async () => {
-    await seedIfEmpty();
-    const himmelhoch = (await listCompanies()).find(
-      (c) => c.name === "Himmelhoch GmbH"
-    )!;
-    expect(himmelhoch.status).toBe("Im Gespräch");
-
-    await setManualStatus(himmelhoch.id, "Geparkt");
-
-    const [updated] = await db
-      .select()
-      .from(firmen)
-      .where(eq(firmen.id, himmelhoch.id));
-    expect(updated.status).toBe("Geparkt");
   });
 
   // --- DB-07: manual add + inline edit (Plan 03-03) ---

@@ -66,20 +66,6 @@ export async function markViewed(firmaId: string): Promise<void> {
     .where(eq(firmen.id, firmaId));
 }
 
-// D-02: the ONE allowed hand-set status path. "Tot"/"Geparkt" are sticky manual
-// overrides (the data layer's rederive() preserves them); they are never derived
-// from an outcome. This does NOT touch interactions. Clearing the override /
-// returning to a derived status is out of scope for Phase 2.
-export async function setManualStatus(
-  firmaId: string,
-  status: "Tot" | "Geparkt",
-): Promise<void> {
-  await db
-    .update(firmen)
-    .set({ status, updated_at: new Date().toISOString() })
-    .where(eq(firmen.id, firmaId));
-}
-
 // DB-07 / D-05 / D-06: manually add a company via "+ Neue Firma". The new firma
 // gets Status "Neu" — the no-interaction deriveStatus default (hand-set here; this
 // path never routes through derive.ts since there are no interactions yet) — heiss
@@ -120,9 +106,9 @@ export async function addCompany(input: {
 }
 
 // D-07: patch the inline-editable company text fields (Unternehmen, FN, Branche,
-// Größe, Website, Lessons) on a single firma and bump updated_at. Mirrors
-// setManualStatus' parameterized update shape — all writes stay in this data layer
-// (DATA-02) and Drizzle parameterizes them (T-03-SQLI). Status is NOT editable here.
+// Größe, Website, Lessons) on a single firma and bump updated_at. All writes stay
+// in this data layer (DATA-02) and Drizzle parameterizes them (T-03-SQLI). Status
+// is NOT editable here.
 export async function updateCompanyField(
   id: string,
   patch: Partial<
