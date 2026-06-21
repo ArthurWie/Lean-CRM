@@ -78,7 +78,7 @@ describe("CompanyTable", () => {
     expect(ths).toEqual(HEADERS);
   });
 
-  it("hides Tot/Geparkt rows by default and reveals them via the Tot/Geparkt filter (DB-03)", () => {
+  it("unconditionally excludes Tot/Geparkt rows from the active list (D6-07/SET-03)", () => {
     render(
       <CompanyTable
         companies={[
@@ -89,16 +89,28 @@ describe("CompanyTable", () => {
       />,
     );
 
-    // Default: only the active company is visible.
+    // Only the active company is visible — Tot/Geparkt are not shown and there is
+    // no toggle that could reveal them (they live in Einstellungen now).
     expect(screen.queryByText("Lebendig GmbH")).toBeTruthy();
     expect(screen.queryByText("Verstorben GmbH")).toBeNull();
     expect(screen.queryByText("Geparkt GmbH")).toBeNull();
 
-    // Toggle the Tot/Geparkt filter on.
-    fireEvent.click(screen.getByRole("button", { name: "Tot/Geparkt" }));
+    // The removed toolbar buttons no longer exist.
+    expect(screen.queryByRole("button", { name: "Tot/Geparkt" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "🔥 Heiß" })).toBeNull();
+  });
 
-    expect(screen.queryByText("Verstorben GmbH")).toBeTruthy();
-    expect(screen.queryByText("Geparkt GmbH")).toBeTruthy();
+  it("the simplified toolbar keeps Suchen, Aktiv, Zuletzt gelöscht, CSV importieren, + Neue Firma and Fokus (SET-05)", () => {
+    render(<CompanyTable companies={[company({ id: "1", name: "Acme GmbH", status: "Neu" })]} />);
+    expect(screen.getByPlaceholderText("Suchen…")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Aktiv" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Zuletzt gelöscht" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "CSV importieren" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "+ Neue Firma" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Fokus" })).toBeTruthy();
+    // ...and the two removed filter buttons are gone.
+    expect(screen.queryByRole("button", { name: "Tot/Geparkt" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "🔥 Heiß" })).toBeNull();
   });
 
   it("renders the 🔥 glyph beside a hot company name and nowhere else (UI-02)", () => {
@@ -117,18 +129,17 @@ describe("CompanyTable", () => {
     expect(within(cold as HTMLElement).queryByText("🔥")).toBeNull();
   });
 
-  it("maps each status to its mockup pill variant class", () => {
+  it("maps each active status to its mockup pill variant class", () => {
+    // Tot/Geparkt no longer render in the active list (D6-07) — their pill mapping
+    // is exercised by the Einstellungen Stillgelegte tab, not here.
     render(
       <CompanyTable
-        showDeadInitially
         companies={[
           company({ id: "1", name: "A", status: "Neu" }),
           company({ id: "2", name: "B", status: "Offen" }),
           company({ id: "3", name: "C", status: "Im Gespräch" }),
           company({ id: "4", name: "D", status: "Termin" }),
           company({ id: "5", name: "E", status: "Kein Interesse" }),
-          company({ id: "6", name: "F", status: "Tot" }),
-          company({ id: "7", name: "G", status: "Geparkt" }),
         ]}
       />,
     );
@@ -139,8 +150,6 @@ describe("CompanyTable", () => {
     expect(pillClass("Im Gespräch")).toContain("gespraech");
     expect(pillClass("Termin")).toContain("termin");
     expect(pillClass("Kein Interesse")).toContain("kein");
-    expect(pillClass("Tot")).toContain("tot");
-    expect(pillClass("Geparkt")).toContain("tot");
   });
 
   it("shows the no-companies empty state when given an empty list", () => {
@@ -148,13 +157,15 @@ describe("CompanyTable", () => {
     expect(screen.queryByText("Noch keine Firmen")).toBeTruthy();
   });
 
-  it("shows the filter-empty state when the active filter hides everything", () => {
+  it("shows the active-list empty state pointing at Einstellungen when only dead companies exist", () => {
     render(
       <CompanyTable companies={[company({ id: "1", name: "Tote GmbH", status: "Tot" })]} />,
     );
     expect(
       screen.queryByText(/Keine aktiven Firmen/),
     ).toBeTruthy();
+    // New copy directs the user to the Einstellungen Stillgelegte tab (D6-07).
+    expect(screen.queryByText(/findest\s+du\s+unter\s+Einstellungen/)).toBeTruthy();
   });
 
   it("clicking a row reveals an inline detail region and a second click hides it (DB-06)", () => {
@@ -340,7 +351,7 @@ describe("CompanyTable", () => {
       expect(screen.queryByText("Himmelhoch GmbH")).toBeNull();
     });
 
-    it("search stacks with the dead-row toggle (D-11)", () => {
+    it("search never surfaces Tot/Geparkt rows even when their name matches (D6-07)", () => {
       render(
         <CompanyTable
           companies={[
@@ -350,12 +361,11 @@ describe("CompanyTable", () => {
         />,
       );
       fireEvent.change(search(), { target: { value: "alpha" } });
-      // Both names match the query, but the dead one stays hidden by the toggle.
+      // Both names match the query, but the dead one is unconditionally excluded
+      // and there is no toggle that could reveal it.
       expect(screen.queryByText("Alpha GmbH")).toBeTruthy();
       expect(screen.queryByText("Alpha Tot GmbH")).toBeNull();
-      // Reveal dead rows → the dead match now appears too.
-      fireEvent.click(screen.getByRole("button", { name: "Tot/Geparkt" }));
-      expect(screen.queryByText("Alpha Tot GmbH")).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Tot/Geparkt" })).toBeNull();
     });
   });
 

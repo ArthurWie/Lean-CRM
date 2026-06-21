@@ -419,8 +419,6 @@ type Props = {
   // CompanyDetail → LogForm. Optional (default "") so existing tests get the
   // unset nudge. App supplies the real value (read via settings.ts).
   bearbeiter?: string;
-  // Test-only seam: lets a test render with dead rows already visible.
-  showDeadInitially?: boolean;
   // Test-only seam: lets a test render the "Zuletzt gelöscht" trash view directly.
   trashViewInitially?: boolean;
 };
@@ -445,14 +443,12 @@ export function CompanyTable({
   onOpenFocus,
   onImport,
   bearbeiter = "",
-  showDeadInitially = false,
   trashViewInitially = false,
 }: Props) {
   // Phase 5: hidden file input the "CSV importieren" button triggers. Its value is
   // reset after each pick so re-selecting the SAME file re-fires `change` (a native
   // input only fires change when the value differs — RESEARCH Environment note).
   const importInputRef = useRef<HTMLInputElement>(null);
-  const [showDead, setShowDead] = useState(showDeadInitially);
   // "Zuletzt gelöscht": when true, the trash view replaces the normal table.
   const [trashView, setTrashView] = useState(trashViewInitially);
   // The trash row currently in its inline "Wirklich löschen?" confirm, or null.
@@ -537,11 +533,12 @@ export function CompanyTable({
     });
   }
 
-  // DB-08 search (D-10) stacked with the dead toggle (D-11), then always-on
-  // 🔥-first German-alpha sort (DB-04, D-12) — all in the pure filterSort module.
+  // DB-08 search (D-10) over the active list (Tot/Geparkt unconditionally excluded,
+  // D6-07), then always-on 🔥-first German-alpha sort (DB-04, D-12) — all in the
+  // pure filterSort module.
   const visible = useMemo(
-    () => visibleCompanies(companies, contactsByFirma, { search, showDead }),
-    [companies, contactsByFirma, search, showDead],
+    () => visibleCompanies(companies, contactsByFirma, { search }),
+    [companies, contactsByFirma, search],
   );
 
   return (
@@ -560,20 +557,6 @@ export function CompanyTable({
           onClick={() => setTrashView(false)}
         >
           Aktiv
-        </button>
-        <button className="filt" type="button" disabled>
-          🔥 Heiß
-        </button>
-        <button
-          className={!trashView && showDead ? "filt on" : "filt"}
-          type="button"
-          aria-pressed={!trashView && showDead}
-          onClick={() => {
-            setTrashView(false);
-            setShowDead((v) => !v);
-          }}
-        >
-          Tot/Geparkt
         </button>
         <button
           className={trashView ? "filt on" : "filt"}
@@ -1001,8 +984,8 @@ export function CompanyTable({
               <tr>
                 <td colSpan={9} className="empty">
                   <div className="empty-b">
-                    Keine aktiven Firmen. Aktiviere „Tot/Geparkt", um stillgelegte
-                    Firmen zu sehen.
+                    Keine aktiven Firmen. Stillgelegte (Tot/Geparkt) Firmen findest
+                    du unter Einstellungen.
                   </div>
                 </td>
               </tr>
