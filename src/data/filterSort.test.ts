@@ -49,21 +49,27 @@ describe("DEAD set", () => {
   });
 });
 
-describe("filterCompanies — dead toggle (D-11)", () => {
+describe("filterCompanies — unconditional dead-exclusion (D6-07)", () => {
   const rows = [
     company({ id: "1", name: "Lebendig GmbH", status: "Offen" }),
     company({ id: "2", name: "Verstorben GmbH", status: "Tot" }),
     company({ id: "3", name: "Geparkt GmbH", status: "Geparkt" }),
   ];
 
-  it("empty search + showDead=false returns only non-dead companies", () => {
-    const out = filterCompanies(rows, {}, { search: "", showDead: false });
+  it("always drops Tot/Geparkt rows from the active list (empty search)", () => {
+    const out = filterCompanies(rows, {}, { search: "" });
     expect(out.map((c) => c.id)).toEqual(["1"]);
   });
 
-  it("empty search + showDead=true returns ALL companies", () => {
-    const out = filterCompanies(rows, {}, { search: "", showDead: true });
-    expect(out.map((c) => c.id)).toEqual(["1", "2", "3"]);
+  it("drops Tot/Geparkt rows even when a search query matches their name", () => {
+    const dead = [
+      company({ id: "1", name: "Aktiv GmbH", status: "Offen" }),
+      company({ id: "2", name: "Aktiv Tot GmbH", status: "Tot" }),
+      company({ id: "3", name: "Aktiv Parkplatz GmbH", status: "Geparkt" }),
+    ];
+    const out = filterCompanies(dead, {}, { search: "aktiv" });
+    // All three names match "aktiv", but the two dead ones are unconditionally hidden.
+    expect(out.map((c) => c.id)).toEqual(["1"]);
   });
 });
 
@@ -91,7 +97,6 @@ describe("filterCompanies — search match (D-10)", () => {
   it("matches case-insensitively against the company name", () => {
     const out = filterCompanies(rows, contactsByFirma, {
       search: "himmel",
-      showDead: false,
     });
     expect(out.map((c) => c.id)).toEqual(["1"]);
   });
@@ -99,7 +104,6 @@ describe("filterCompanies — search match (D-10)", () => {
   it("matches case-insensitively against branche", () => {
     const out = filterCompanies(rows, contactsByFirma, {
       search: "security",
-      showDead: false,
     });
     expect(out.map((c) => c.id)).toEqual(["2"]);
   });
@@ -107,7 +111,6 @@ describe("filterCompanies — search match (D-10)", () => {
   it("matches case-insensitively against a contact name", () => {
     const out = filterCompanies(rows, contactsByFirma, {
       search: "müller",
-      showDead: false,
     });
     expect(out.map((c) => c.id)).toEqual(["2"]);
   });
@@ -115,7 +118,6 @@ describe("filterCompanies — search match (D-10)", () => {
   it("does NOT match against lessons/notes", () => {
     const out = filterCompanies(rows, contactsByFirma, {
       search: "Geheimwort",
-      showDead: false,
     });
     expect(out).toEqual([]);
   });
@@ -123,26 +125,20 @@ describe("filterCompanies — search match (D-10)", () => {
   it("trims surrounding whitespace from the query", () => {
     const out = filterCompanies(rows, contactsByFirma, {
       search: "  himmel  ",
-      showDead: false,
     });
     expect(out.map((c) => c.id)).toEqual(["1"]);
   });
 });
 
-describe("filterCompanies — stacked search + dead toggle (D-11)", () => {
+describe("filterCompanies — search ANDed with unconditional dead-exclusion (D6-07)", () => {
   const rows = [
     company({ id: "1", name: "Alpha GmbH", status: "Offen", branche: "PR" }),
     company({ id: "2", name: "Alpha Tot GmbH", status: "Tot", branche: "PR" }),
   ];
 
-  it("only rows passing BOTH predicates appear (search matches both, toggle hides the dead one)", () => {
-    const out = filterCompanies(rows, {}, { search: "alpha", showDead: false });
+  it("only active rows matching the query appear; the dead match is always hidden", () => {
+    const out = filterCompanies(rows, {}, { search: "alpha" });
     expect(out.map((c) => c.id)).toEqual(["1"]);
-  });
-
-  it("with showDead=true both matching rows appear", () => {
-    const out = filterCompanies(rows, {}, { search: "alpha", showDead: true });
-    expect(out.map((c) => c.id)).toEqual(["1", "2"]);
   });
 });
 
@@ -188,13 +184,13 @@ describe("sortCompanies — 🔥-first then German alpha (D-12)", () => {
 });
 
 describe("visibleCompanies — filter then sort composed", () => {
-  it("applies the dead toggle + search, then 🔥-first German-alpha sort", () => {
+  it("applies unconditional dead-exclusion + search, then 🔥-first German-alpha sort", () => {
     const rows = [
       company({ id: "1", name: "Zeta GmbH", status: "Offen", heiss: true, branche: "PR" }),
       company({ id: "2", name: "Alpha GmbH", status: "Offen", heiss: false, branche: "PR" }),
       company({ id: "3", name: "Tote GmbH", status: "Tot", heiss: true, branche: "PR" }),
     ];
-    const out = visibleCompanies(rows, {}, { search: "pr", showDead: false });
+    const out = visibleCompanies(rows, {}, { search: "pr" });
     // "Tote" is dead → dropped; remaining sorted 🔥-first: Zeta(hot) then Alpha.
     expect(out.map((c) => c.id)).toEqual(["1", "2"]);
   });
