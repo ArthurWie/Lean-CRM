@@ -55,7 +55,18 @@ export const interaktionen = sqliteTable("interaktionen", {
   kanal: text("kanal"), // Telefon/E-Mail/LinkedIn
   outcome: text("outcome"),
   notiz: text("notiz"),
-  bearbeiter: text("bearbeiter").notNull().default("Arthur"),
+  // D6-03: no DB-level default name. Stays NOT NULL — the data layer always
+  // supplies a value (the configured name, or "" when unset), so the constraint
+  // still holds while the single-user "Arthur" default is gone.
+  bearbeiter: text("bearbeiter").notNull(),
+});
+
+// D6-04: a small key/value settings table. Holds app configuration that travels
+// inside the synced DB file (e.g. the "Erfasst als" bearbeiter name). `value` is
+// nullable; an absent row and a NULL value both mean "unset" to the data layer.
+export const settings = sqliteTable("settings", {
+  key: text("key").primaryKey(),
+  value: text("value"),
 });
 
 export const followups = sqliteTable("followups", {

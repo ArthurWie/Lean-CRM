@@ -30,6 +30,12 @@ pub fn run() {
             sql: include_str!("../migrations/0003_add_deleted_at.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 4,
+            description: "add_settings",
+            sql: include_str!("../migrations/0004_add_settings.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()
