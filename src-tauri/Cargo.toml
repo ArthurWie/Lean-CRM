@@ -1,12 +1,12 @@
 [package]
-name = "clickwise-crm"
+name = "lean-crm"
 version = "0.1.0"
-description = "ClickWise CRM — lean single-user sales CRM"
-authors = ["Arthur"]
+description = "Lean CRM — lean single-user sales CRM"
+authors = []
 edition = "2021"
 
 [lib]
-name = "clickwise_crm_lib"
+name = "lean_crm_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

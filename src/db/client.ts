@@ -7,7 +7,7 @@ import * as schema from "./schema";
 
 // MUST be byte-identical to DB_URL in src-tauri/src/lib.rs and the
 // plugins.sql.preload string in tauri.conf.json (RESEARCH.md Pitfall 2).
-export const DB_URL = "sqlite:clickwise.db";
+export const DB_URL = "sqlite:leancrm.db";
 
 let conn: Database | null = null;
 async function getConn(): Promise<Database> {

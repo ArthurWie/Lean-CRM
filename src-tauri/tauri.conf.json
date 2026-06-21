@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "ClickWise CRM",
+  "productName": "Lean CRM",
   "version": "0.1.0",
-  "identifier": "com.clickwise.crm",
+  "identifier": "com.leancrm.crm",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "ClickWise CRM",
+        "title": "Lean CRM",
         "width": 1280,
         "height": 800
       }
@@ -23,7 +23,7 @@
   },
   "plugins": {
     "sql": {
-      "preload": ["sqlite:clickwise.db"]
+      "preload": ["sqlite:leancrm.db"]
     }
   },
   "bundle": {

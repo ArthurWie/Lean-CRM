@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    clickwise_crm_lib::run()
+    lean_crm_lib::run()
 }

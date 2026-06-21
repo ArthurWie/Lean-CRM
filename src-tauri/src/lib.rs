@@ -1,5 +1,5 @@
 // Registers tauri-plugin-sql and materializes the Phase 1 schema into the
-// single on-disk SQLite file (clickwise.db) at startup. The Rust-side
+// single on-disk SQLite file (leancrm.db) at startup. The Rust-side
 // add_migrations IS the schema-push for this architecture — drizzle-kit only
 // generates the SQL (it cannot reach the proxy DB). See RESEARCH.md Pattern 2.
 use tauri_plugin_sql::{Builder as SqlBuilder, Migration, MigrationKind};
@@ -7,7 +7,7 @@ use tauri_plugin_sql::{Builder as SqlBuilder, Migration, MigrationKind};
 // DB connection string. MUST be byte-identical to DB_URL in src/db/client.ts
 // and to plugins.sql.preload in tauri.conf.json — a mismatch silently creates
 // a second file (RESEARCH.md Pitfall 2).
-const DB_URL: &str = "sqlite:clickwise.db";
+const DB_URL: &str = "sqlite:leancrm.db";
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
