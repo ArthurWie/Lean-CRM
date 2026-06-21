@@ -9,6 +9,7 @@ import { db } from "../db/client";
 import { interaktionen, followups, firmen } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { deriveStatus } from "./derive";
+import { getBearbeiter } from "./settings";
 import type { ManualOverride } from "../types";
 
 export type Interaction = typeof interaktionen.$inferSelect;
@@ -74,6 +75,12 @@ export async function logInteraction(input: {
   heiss?: boolean;
   followup?: { faellig_am: string; grund?: string };
 }): Promise<void> {
+  // D6-02/D6-03: stamp the CONFIGURED logging name (settings.ts), not a hard-coded
+  // "Arthur". getBearbeiter() returns "" when unset — that blank is recorded as-is
+  // (the column is NOT NULL with no default). Read sequentially BEFORE the insert;
+  // no db.transaction() (same module landmine note).
+  const bearbeiter = await getBearbeiter();
+
   // Sequential awaited writes, no db.transaction() (see module note): insert the
   // interaction, set 🔥, capture the follow-up, then re-derive status LAST.
   await db.insert(interaktionen).values({
@@ -84,7 +91,7 @@ export async function logInteraction(input: {
     kanal: input.kanal,
     outcome: input.outcome,
     notiz: input.notiz,
-    bearbeiter: "Arthur", // D-08: single-user default (column also defaults this)
+    bearbeiter,
   });
 
   // 🔥 writes the boolean integer-mode column unconditionally on every log, so

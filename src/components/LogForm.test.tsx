@@ -39,21 +39,21 @@ function outcomeButtonNames(): string[] {
 
 describe("LogForm", () => {
   it("defaults to Telefon and shows exactly the six Telefon outcomes (LOG-02/D-03)", () => {
-    render(<LogForm onSave={vi.fn()} />);
+    render(<LogForm onSave={vi.fn()} bearbeiter="Max" />);
     // Telefon channel button is selected.
     expect(screen.getByRole("button", { name: "Telefon" }).className).toContain("s");
     expect(outcomeButtonNames()).toEqual(TELEFON);
   });
 
   it("switches to the five E-Mail outcomes and hides the Telefon ones (LOG-02/D-03)", () => {
-    render(<LogForm onSave={vi.fn()} />);
+    render(<LogForm onSave={vi.fn()} bearbeiter="Max" />);
     fireEvent.click(screen.getByRole("button", { name: "E-Mail" }));
     expect(outcomeButtonNames()).toEqual(EMAIL);
     expect(outcomeButtonNames()).not.toContain("Gesprochen");
   });
 
   it("LinkedIn shows 'Antwort erhalten' and never 'Geantwortet' (LOG-02/D-03)", () => {
-    render(<LogForm onSave={vi.fn()} />);
+    render(<LogForm onSave={vi.fn()} bearbeiter="Max" />);
     fireEvent.click(screen.getByRole("button", { name: "LinkedIn" }));
     expect(outcomeButtonNames()).toEqual(LINKEDIN);
     expect(outcomeButtonNames()).toContain("Antwort erhalten");
@@ -61,7 +61,7 @@ describe("LogForm", () => {
   });
 
   it("clears a previously selected outcome when the channel changes (LOG-01)", () => {
-    render(<LogForm onSave={vi.fn()} />);
+    render(<LogForm onSave={vi.fn()} bearbeiter="Max" />);
     fireEvent.click(screen.getByRole("button", { name: "Gesprochen" }));
     expect(screen.getByRole("button", { name: "Gesprochen" }).className).toContain("s");
     // Switch channel — outcome selection resets, Speichern disabled again.
@@ -77,7 +77,7 @@ describe("LogForm", () => {
   });
 
   it("disables Speichern until an outcome is chosen (LOG-01/03)", () => {
-    render(<LogForm onSave={vi.fn()} />);
+    render(<LogForm onSave={vi.fn()} bearbeiter="Max" />);
     expect(
       (screen.getByRole("button", { name: "Speichern" }) as HTMLButtonElement).disabled,
     ).toBe(true);
@@ -89,7 +89,7 @@ describe("LogForm", () => {
 
   it("emits onSave with kanal/outcome/notiz on Speichern (LOG-01/03)", () => {
     const onSave = vi.fn();
-    render(<LogForm onSave={onSave} />);
+    render(<LogForm onSave={onSave} bearbeiter="Max" />);
     fireEvent.click(screen.getByRole("button", { name: "Gesprochen" }));
     fireEvent.change(screen.getByRole("textbox"), {
       target: { value: "Sehr interessiert, will mehr hören." },
@@ -104,7 +104,7 @@ describe("LogForm", () => {
 
   it("checking the 🔥 box makes the onSave payload heiss true (LOG-03)", () => {
     const onSave = vi.fn();
-    render(<LogForm onSave={onSave} />);
+    render(<LogForm onSave={onSave} bearbeiter="Max" />);
     fireEvent.click(screen.getByRole("button", { name: "Gesprochen" }));
     // The hot-mark checkbox — find by its accessible label text "heiß".
     const hot = screen.getByLabelText(/heiß/);
@@ -116,7 +116,7 @@ describe("LogForm", () => {
 
   it("emits a followup with a faellig_am ISO date when Follow-up is enabled (LOG-03/D-05)", () => {
     const onSave = vi.fn();
-    render(<LogForm onSave={onSave} />);
+    render(<LogForm onSave={onSave} bearbeiter="Max" />);
     fireEvent.click(screen.getByRole("button", { name: "Gesprochen" }));
     const fu = screen.getByLabelText(/Follow-up/);
     fireEvent.click(fu); // enable
@@ -127,14 +127,31 @@ describe("LogForm", () => {
   });
 
   it("renders the German copy and derive hint (LOG-01..04)", () => {
-    render(<LogForm onSave={vi.fn()} />);
+    render(<LogForm onSave={vi.fn()} bearbeiter="Max" />);
     expect(screen.getByRole("button", { name: "Speichern" })).toBeTruthy();
     expect(screen.getByText(/Wird erfasst als/)).toBeTruthy();
     expect(screen.getByText(/^Daraus wird gesetzt:/)).toBeTruthy();
   });
 
+  it("renders the passed bearbeiter name in the 'Wird erfasst als' line (SET-02)", () => {
+    render(<LogForm onSave={vi.fn()} bearbeiter="Eva" />);
+    expect(screen.getByText(/Wird erfasst als/)).toBeTruthy();
+    // The name is rendered (bolded) and is NOT "Arthur".
+    expect(screen.getByText("Eva")).toBeTruthy();
+    expect(screen.queryByText("Arthur")).toBeNull();
+  });
+
+  it("shows the unset nudge (not a name, not the danger color) when bearbeiter is blank (D6-03)", () => {
+    render(<LogForm onSave={vi.fn()} bearbeiter="" />);
+    // Informational nudge instead of the "Wird erfasst als <name>" line.
+    expect(screen.getByText(/Noch kein Name gesetzt/)).toBeTruthy();
+    expect(screen.queryByText(/Wird erfasst als/)).toBeNull();
+  });
+
   it("renders 🔥 as the only emoji; channel/outcome/save are text (UI-02)", () => {
-    const { container } = render(<LogForm onSave={vi.fn()} />);
+    const { container } = render(
+      <LogForm onSave={vi.fn()} bearbeiter="Max" />,
+    );
     const text = container.textContent ?? "";
     // Strip 🔥, then assert no other emoji-range glyph remains.
     const withoutFlame = text.replace(/🔥/g, "");

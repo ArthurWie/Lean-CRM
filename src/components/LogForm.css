@@ -143,6 +143,11 @@
 .logby b {
   color: var(--accent);
 }
+/* Unset-bearbeiter nudge: informational, more muted than the name line — never
+   the danger color (UI-SPEC). */
+.logby-nudge {
+  color: var(--faint);
+}
 
 /* Speichern */
 .save {

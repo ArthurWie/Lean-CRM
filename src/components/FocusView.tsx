@@ -48,6 +48,9 @@ type Props = {
   onSkip: (firmaId: string) => void;
   // Zurück zur Tabelle — fired from the empty-start and completion screens.
   onClose: () => void;
+  // D6-03: the configured "Erfasst als" name, threaded down to the embedded
+  // LogForm. Optional (default "") so existing callers/tests get the unset nudge.
+  bearbeiter?: string;
 };
 
 // why-now line (pure). Reads the serve-order reason; specifics live in the notes
@@ -77,6 +80,7 @@ export function FocusView({
   onSaveAndNext,
   onSkip,
   onClose,
+  bearbeiter = "",
 }: Props) {
   // -------------------------------------------------------------------------
   // In-memory cursor (D-07/D-08-amended/D-09, FOCUS-05/06). No analog file —
@@ -270,7 +274,7 @@ export function FocusView({
           </button>
         </div>
 
-        <LogForm onSave={handleSave} />
+        <LogForm onSave={handleSave} bearbeiter={bearbeiter} />
 
         <div className="focus-foot">
           <button type="button" className="act-skip" onClick={handleSkip}>

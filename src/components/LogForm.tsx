@@ -86,9 +86,17 @@ function resolvePreset(preset: Preset, customDate: string): string {
 
 type Props = {
   onSave: (entry: LogEntry) => void;
+  // D6-03: the configured "Erfasst als" name, supplied by the parent (App reads
+  // it via settings.ts — LogForm stays DATA-02 and never imports settings).
+  // "" (blank) means no name is set yet → render the informational nudge.
+  bearbeiter: string;
 };
 
-export function LogForm({ onSave }: Props) {
+// The unset-bearbeiter nudge (UI-SPEC): informational, muted — NOT an error.
+const BEARBEITER_NUDGE =
+  "Noch kein Name gesetzt — neue Einträge werden ohne Bearbeiter gespeichert. Trag unter Einstellungen ein, wer Kontakte erfasst.";
+
+export function LogForm({ onSave, bearbeiter }: Props) {
   const [kanal, setKanal] = useState<Channel>("Telefon");
   const [outcome, setOutcome] = useState<string | null>(null);
   const [notiz, setNotiz] = useState("");
@@ -191,7 +199,13 @@ export function LogForm({ onSave }: Props) {
       </div>
 
       <div className="logby">
-        Wird erfasst als <b>Arthur</b>
+        {bearbeiter ? (
+          <>
+            Wird erfasst als <b>{bearbeiter}</b>
+          </>
+        ) : (
+          <span className="logby-nudge">{BEARBEITER_NUDGE}</span>
+        )}
       </div>
 
       <button

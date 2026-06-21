@@ -37,6 +37,10 @@ type Props = {
   contacts: Contact[];
   interactions: Interaction[];
   onSave: (entry: LogEntry) => void;
+  // D6-03: the configured "Erfasst als" name, threaded down to the embedded
+  // LogForm. Optional (default "") so existing callers/tests that don't wire it
+  // get the unset-nudge behavior without breaking — App supplies the real value.
+  bearbeiter?: string;
   // Addition 2: hard-delete this company (cascade). Optional so existing tests /
   // callers that don't wire it simply hide the Löschen action.
   onDelete?: () => void;
@@ -301,6 +305,7 @@ export function CompanyDetail({
   onUpdateContact,
   onDeleteContact,
   onSetContactEmails,
+  bearbeiter = "",
 }: Props) {
   // Addition 2: the "Löschen" action uses a two-step INLINE confirm (no modal),
   // mirroring the D-08 contact-removal pattern: click Löschen → "Wirklich löschen?
@@ -432,7 +437,7 @@ export function CompanyDetail({
 
       <div className="dcol">
         <h4>Neuer Eintrag</h4>
-        <LogForm onSave={onSave} />
+        <LogForm onSave={onSave} bearbeiter={bearbeiter} />
       </div>
     </div>
   );

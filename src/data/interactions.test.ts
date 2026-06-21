@@ -20,6 +20,7 @@ const MIGRATION_PATHS = [
   "../../src-tauri/migrations/0001_init.sql",
   "../../src-tauri/migrations/0002_add_last_viewed.sql",
   "../../src-tauri/migrations/0003_add_deleted_at.sql",
+  "../../src-tauri/migrations/0004_add_settings.sql",
 ].map((p) => fileURLToPath(new URL(p, import.meta.url)));
 
 let sqlite: DatabaseSyncType;
@@ -59,6 +60,14 @@ vi.mock("@tauri-apps/plugin-sql", () => {
   };
 });
 
+// D6-02/D6-03: logInteraction now reads the configured name via settings.ts.
+// Mock getBearbeiter so each test controls the recorded bearbeiter independently
+// of any persisted setting. Default: "" (unset). Individual tests override it.
+const { bearbeiterValue } = vi.hoisted(() => ({ bearbeiterValue: { current: "" } }));
+vi.mock("./settings", () => ({
+  getBearbeiter: vi.fn(async () => bearbeiterValue.current),
+}));
+
 // Import AFTER the mock is registered.
 const {
   logInteraction,
@@ -95,10 +104,12 @@ async function getFirma(id: string) {
 beforeEach(() => {
   sqlite = new DatabaseSync(":memory:");
   applyMigration(sqlite);
+  bearbeiterValue.current = ""; // default: no configured name
 });
 
 describe("interactions data layer", () => {
-  it("logInteraction inserts a row with bearbeiter Arthur + UTC datum and re-derives firmen.status (LOG-01/04, DATA-06)", async () => {
+  it("logInteraction records the configured bearbeiter + UTC datum and re-derives firmen.status (LOG-01/04, DATA-06, SET-02)", async () => {
+    bearbeiterValue.current = "Max"; // configured name
     const firmaId = await seedFirma();
     await logInteraction({
       firma_id: firmaId,
@@ -112,13 +123,32 @@ describe("interactions data layer", () => {
       .from(interaktionen)
       .where(eq(interaktionen.firma_id, firmaId));
     expect(rows).toHaveLength(1);
-    expect(rows[0].bearbeiter).toBe("Arthur");
+    expect(rows[0].bearbeiter).toBe("Max");
     expect(rows[0].datum).toMatch(/^\d{4}-\d{2}-\d{2}T/); // UTC ISO
 
     const firma = await getFirma(firmaId);
     // Telefon "Gesprochen" → "Im Gespräch" per derive.ts
     expect(firma.status).toBe("Im Gespräch");
     expect(firma.updated_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it("logInteraction records bearbeiter '' (blank) when no name is configured — never 'Arthur' (SET-02/D6-03)", async () => {
+    bearbeiterValue.current = ""; // unset
+    const firmaId = await seedFirma();
+    await logInteraction({
+      firma_id: firmaId,
+      kanal: "Telefon",
+      outcome: "Gesprochen",
+      notiz: "Ohne Namen.",
+    });
+
+    const rows = await db
+      .select()
+      .from(interaktionen)
+      .where(eq(interaktionen.firma_id, firmaId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].bearbeiter).toBe("");
+    expect(rows[0].bearbeiter).not.toBe("Arthur");
   });
 
   it("logInteraction with a follow-up inserts a followups row with erledigt false (LOG-03)", async () => {
