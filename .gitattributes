@@ -1,0 +1,8 @@
+# Normalize line endings to LF for all text files in the working tree.
+# tauri-plugin-sql (sqlx) checksums the raw bytes of each migration .sql at
+# startup and panics ("migration N was previously applied but has been
+# modified") if a CRLF<->LF flip changes the bytes. Pinning EOL prevents that.
+* text=auto eol=lf
+
+# Migrations are byte-sensitive — never let core.autocrlf touch them.
+*.sql text eol=lf
