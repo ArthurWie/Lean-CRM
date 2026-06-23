@@ -55,89 +55,101 @@
   --dead:var(--gray9);
 }
 
-/* Toolbar (render-only chrome for layout fidelity; only Tot/Geparkt is wired) */
-.toolbar {
+/* View toolbar (RDS-02) — the Twenty `.viewbar` family, replacing the old
+   direction-B `.toolbar`/`.filt`/`.impbtn`/`.addbtn` rules. The `.vtab` view tabs
+   re-tone the existing wired Aktiv/Zuletzt-gelöscht toggle (active = --gray4 fill);
+   the dashed `.chip` is a render-only filter affordance. */
+.viewbar {
   display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
   align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-light);
+}
+.vtab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.vtab:hover {
+  background: var(--gray3);
+}
+.vtab.active {
+  background: var(--gray4);
+  color: var(--gray12);
+}
+.vtab svg {
+  color: var(--gray9);
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  color: var(--text-tertiary);
+  cursor: pointer;
 }
 .search {
   flex: 1;
   max-width: 280px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 7px 11px;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--r-sm);
+  padding: 6px 10px;
   font-family: inherit;
   font-size: 13px;
-  background: var(--surface);
+  color: var(--gray12);
+  background: var(--gray1);
 }
-.filt {
-  border: 1px solid var(--line);
-  background: #fff;
-  border-radius: 8px;
-  padding: 7px 11px;
-  font-size: 12.5px;
-  color: var(--soft);
-  cursor: pointer;
-}
-.filt.on {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: #eef0ff;
-  font-weight: 600;
-}
-.impbtn {
-  margin-left: auto;
-  background: #fff;
-  color: var(--accent);
-  border: 1px solid var(--accent);
-  border-radius: 8px;
-  padding: 8px 14px;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.addbtn {
-  background: #6366f1;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 8px 14px;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+.search:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px var(--blue-bg);
 }
 
-/* Table shell — floating white card (no full gridlines, soft shadow) */
+/* Record table (RDS-03) — Twenty density: 33px rows, sticky header, hairline
+   separators. `.tw` keeps overflow:auto + a min-width so the 9 columns scroll
+   rather than crush (RESEARCH Pitfall 5). */
 .tw {
-  background: #fff;
-  border: 1px solid #ececf1;
-  border-radius: 14px;
-  box-shadow: 0 4px 20px rgba(20, 20, 40, 0.06);
+  background: var(--gray1);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-light);
   overflow: auto;
 }
 table {
   border-collapse: collapse;
   width: 100%;
-  min-width: 1180px;
+  min-width: 1100px;
+  font-size: 13px;
 }
-th,
 td {
-  padding: 13px 16px;
+  height: 33px;
+  padding: 0 8px;
   text-align: left;
-  border-bottom: 1px solid #f3f3f6;
-  vertical-align: top;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--gray12);
+  white-space: nowrap;
+  vertical-align: middle;
 }
 th {
-  background: #fff;
+  background: var(--gray1);
   font-size: 12px;
   text-transform: none;
   letter-spacing: 0.2px;
-  color: #9499a6;
-  font-weight: 600;
-  border-bottom: 1px solid #f0f0f4;
+  color: var(--text-tertiary);
+  font-weight: 500;
+  padding: 7px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-medium);
   position: sticky;
   top: 0;
   z-index: 2;
@@ -147,26 +159,52 @@ th {
   cursor: pointer;
 }
 .r-main:hover td {
-  background: #fafaff;
+  background: var(--gray3);
 }
 td.co {
   font-weight: 600;
   position: sticky;
   left: 0;
-  background: #fff;
+  background: var(--gray1);
   z-index: 1;
   white-space: nowrap;
 }
 .r-main:hover td.co {
-  background: #fafaff;
+  background: var(--gray3);
+}
+.cellfirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+.avatar {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--r-sm);
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  flex-shrink: 0;
+}
+.unread {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--blue);
+  flex-shrink: 0;
 }
 .dim {
   color: var(--soft);
 }
+.muted-cell {
+  color: var(--text-tertiary);
+}
 .fire {
-  font-size: 11px;
-  margin-left: 6px;
-  vertical-align: 0;
+  font-size: 14px;
+  line-height: 1;
+  margin-left: 2px;
 }
 .row-dead td {
   color: var(--dead);
@@ -175,77 +213,109 @@ td.co {
   color: var(--dead);
 }
 
-/* Contact text buttons (static this phase; Tel/Mail/in OS wiring is Phase 3) */
-.cIcons {
+/* Contact mini-link chips (RDS-04) — Twenty `.minilink`, replacing `.cIcons`/`.ci`.
+   `.off` = disabled (no data); `.acc` = the LinkedIn variant. Handlers unchanged. */
+.linkrow {
   display: flex;
   gap: 4px;
 }
-.ci {
+.minilink {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  min-width: 36px;
-  height: 23px;
-  padding: 0 8px;
-  border: 1px solid transparent;
-  border-radius: 7px;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--blue11);
+  background: var(--blue-bg);
   text-decoration: none;
-  color: var(--soft);
-  font-size: 11px;
-  font-weight: 600;
-  background: #f6f6fa;
+  cursor: pointer;
 }
-.ci:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+.minilink:hover {
+  background: var(--blue-pale2);
 }
-.ci.tel {
-  border-color: transparent;
-  background: #eef0ff;
-  color: #4f46e5;
+.minilink svg {
+  width: 13px;
+  height: 13px;
 }
-.ci.li.acc {
-  border-color: transparent;
-  background: var(--green-soft);
-  color: var(--green);
+.minilink.acc {
+  color: var(--green11);
+  background: var(--green-bg);
 }
-.ci.off {
+.minilink.off {
   opacity: 0.4;
   pointer-events: none;
 }
 
-/* Status pills */
-.stp {
-  font-size: 11.5px;
-  font-weight: 600;
-  border-radius: 7px;
-  padding: 3px 11px;
+/* Status tag pills (RDS-03) — Twenty solid variant: pale bg + saturated text +
+   6px color dot. All 7 `.t-*` variants ported from head.css (the mapping uses 6;
+   the family is kept complete for the donor contract). */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
   white-space: nowrap;
-  display: inline-block;
 }
-.stp.neu {
-  background: #f1f1f6;
-  color: #5b6172;
+.tag .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
 }
-.stp.offen {
-  background: #fff4e5;
-  color: #b45309;
+.t-neu {
+  background: var(--blue-bg);
+  color: var(--blue11);
 }
-.stp.gespraech {
-  background: #eef0ff;
-  color: #4f46e5;
+.t-neu .dot {
+  background: var(--blue);
 }
-.stp.termin {
-  background: #e9f5ee;
-  color: #2b7a4b;
+.t-kontaktiert {
+  background: var(--sky-bg);
+  color: var(--sky11);
 }
-.stp.kein {
-  background: #fdecec;
-  color: #c0392b;
+.t-kontaktiert .dot {
+  background: #0091c4;
 }
-.stp.tot {
-  background: #f4f5f7;
-  color: #9499a6;
+.t-wv {
+  background: var(--amber-bg);
+  color: var(--amber11);
+}
+.t-wv .dot {
+  background: #ffba18;
+}
+.t-interessiert {
+  background: var(--purple-bg);
+  color: var(--purple11);
+}
+.t-interessiert .dot {
+  background: var(--purple);
+}
+.t-kunde {
+  background: var(--green-bg);
+  color: var(--green11);
+}
+.t-kunde .dot {
+  background: var(--green);
+}
+.t-tot {
+  background: var(--red-bg);
+  color: var(--red11);
+}
+.t-tot .dot {
+  background: var(--red);
+}
+.t-geparkt {
+  background: var(--gray4);
+  color: var(--gray11);
+}
+.t-geparkt .dot {
+  background: var(--gray9);
 }
 
 /* Nächster Schritt / Notizen / Lessons cells */
@@ -411,12 +481,12 @@ td.editable {
   cursor: pointer;
 }
 .ctxmenu .del-yes {
-  color: #b3261e; /* muted danger — matches detail-panel confirm */
-  border-color: #e3b4b0;
-  background: #fcf3f2;
+  color: var(--red11); /* Twenty danger — matches detail-panel confirm */
+  border-color: var(--red5);
+  background: var(--red-bg);
 }
 .ctxmenu .del-yes:hover {
-  background: #f8e7e5;
+  background: var(--red5);
 }
 .ctxmenu .del-cancel:hover {
   color: var(--ink);
@@ -479,12 +549,12 @@ td.editable {
   border-color: var(--accent);
 }
 .trash-purge {
-  color: #b3261e; /* muted danger — matches the other delete confirms */
-  border-color: #e3b4b0;
-  background: #fcf3f2;
+  color: var(--red11); /* Twenty danger — matches the other delete confirms */
+  border-color: var(--red5);
+  background: var(--red-bg);
 }
 .trash-purge:hover {
-  background: #f8e7e5;
+  background: var(--red5);
 }
 /* The inline "Wirklich löschen?" confirm inside a trash row. */
 .trash-actions .confirm-del {
@@ -508,12 +578,12 @@ td.editable {
   cursor: pointer;
 }
 .trash-actions .del-yes {
-  color: #b3261e;
-  border-color: #e3b4b0;
-  background: #fcf3f2;
+  color: var(--red11);
+  border-color: var(--red5);
+  background: var(--red-bg);
 }
 .trash-actions .del-yes:hover {
-  background: #f8e7e5;
+  background: var(--red5);
 }
 .trash-actions .del-cancel:hover {
   color: var(--ink);
