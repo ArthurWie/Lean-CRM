@@ -8,16 +8,55 @@
    adopt the .note treatment (2px left border + mono timestamp). The .log form styles
    live in LogForm.css. */
 
-.dpanel {
-  padding: 16px 18px;
-  display: grid;
-  grid-template-columns: 1.1fr 1fr;
-  gap: 22px;
+/* Phase 07 (RDS-03): the 500px Twenty side panel. A --gray1 surface with a single
+   left hairline, sitting in the .detail-wrap flex row beside the narrowed table
+   (see CompanyTable.css). head.css lines 142-158 are the donor. */
+.detail {
+  width: 500px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border-light);
   background: var(--gray1);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Panel header — 34px avatar tile + 18px/600 name + status pill, with a Tel/Mail/in
+   mini-link action row. The base .avatar (grid/center/white text) lives in
+   CompanyTable.css; only the size/radius are overridden here. */
+.dt-head {
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border-light);
+}
+.dt-title {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.dt-title .avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-md);
+  font-size: 15px;
+}
+.dt-title h2 {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  margin: 0 0 4px;
+}
+.dt-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 13px;
+}
+
+.dt-body {
+  padding: 16px 20px;
+  overflow: auto;
 }
 
 /* Section headers — Twenty .sec-h: 12px/600 secondary text + leading icon. */
-.dcol h4 {
+.dt-body h4 {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary);
@@ -26,11 +65,11 @@
   align-items: center;
   gap: 7px;
 }
-.dcol h4 svg {
+.dt-body h4 svg {
   color: var(--gray8);
   flex-shrink: 0;
 }
-.dcol h4.mt {
+.dt-body h4.mt {
   margin-top: 20px;
 }
 

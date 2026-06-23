@@ -295,6 +295,45 @@ describe("CompanyDetail", () => {
     expect(onSetContactEmails.mock.calls[0][1]).toEqual(["neu@x.at"]);
   });
 
+  // --- Phase 07 (RDS-03): the optional 500px side-panel header ---
+
+  it("renders the side-panel header (avatar + name + status pill) when header props are supplied, and the Tel mini-link fires onTel", () => {
+    const onTel = vi.fn();
+    render(
+      <CompanyDetail
+        contacts={[]}
+        interactions={[]}
+        onSave={vi.fn()}
+        name="Himmelhoch GmbH"
+        status="Im Gespräch"
+        statusClass="t-interessiert"
+        avatarBg="#3e63dd"
+        tel="+43 1 234 5678"
+        onTel={onTel}
+      />,
+    );
+    // The header renders inside .detail .dt-head with an avatar tile carrying the
+    // name initial, the company name, and the status pill.
+    const avatar = document.querySelector(
+      ".detail .dt-head .avatar",
+    ) as HTMLElement;
+    expect(avatar).toBeTruthy();
+    expect(avatar.textContent).toBe("H");
+    expect(screen.getByText("Himmelhoch GmbH")).toBeTruthy();
+    expect(screen.getByText("Im Gespräch")).toBeTruthy();
+
+    // Clicking the Tel mini-link (enabled because tel is present) fires onTel.
+    const tel = document.querySelector(".dt-actions .minilink.tel") as HTMLElement;
+    expect(tel).toBeTruthy();
+    fireEvent.click(tel);
+    expect(onTel).toHaveBeenCalledTimes(1);
+  });
+
+  it("omits the side-panel header when no name prop is supplied (header-less mounts stay clean)", () => {
+    render(<CompanyDetail contacts={[]} interactions={[]} onSave={vi.fn()} />);
+    expect(document.querySelector(".dt-head")).toBeNull();
+  });
+
   it("does not render contact-edit affordances when the handler props are absent (back-compat)", () => {
     render(
       <CompanyDetail

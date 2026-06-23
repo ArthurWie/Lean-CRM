@@ -496,6 +496,21 @@ export function CompanyTable({
     [companies, contactsByFirma, search],
   );
 
+  // Phase 07 (RDS-03): the detail surface is now a 500px right-side panel beside
+  // the narrowed table (a .detail-wrap flex row), not an in-row colSpan expand.
+  // Resolve the selected company + its primary-contact values once for the panel.
+  const selected = expandedId
+    ? visible.find((c) => c.id === expandedId)
+    : undefined;
+  const selContacts = selected ? contactsByFirma[selected.id] ?? [] : [];
+  const selInteractions = selected
+    ? interactionsByFirma[selected.id] ?? []
+    : [];
+  const selC0 = selContacts.find((k) => k.name) ?? selContacts[0];
+  const selTel = selC0?.telefon ?? null;
+  const selEmail = selC0?.emails?.[0] ?? null;
+  const selLi = selC0?.linkedin ?? null;
+
   return (
     <>
       {/* View toolbar (RDS-02): the Twenty `.viewbar`. The `.vtab` view tabs re-tone
@@ -629,6 +644,7 @@ export function CompanyTable({
       )}
 
       {!trashView && (
+      <div className="detail-wrap">
       <div className="tw">
         <table>
           <thead>
@@ -749,8 +765,6 @@ export function CompanyTable({
               const tel = c0?.telefon ?? null;
               const li = c0?.linkedin ?? null;
 
-              const expanded = expandedId === c.id;
-
               return (
                 <Fragment key={c.id}>
                   <tr
@@ -855,50 +869,6 @@ export function CompanyTable({
                       onCommit={(next) => commitEdit(c, "lessons", next)}
                     />
                   </tr>
-                  {expanded && (
-                    <tr className="detail">
-                      <td colSpan={9}>
-                        <CompanyDetail
-                          contacts={contacts}
-                          interactions={interactions}
-                          bearbeiter={bearbeiter}
-                          onSave={(entry) => onSave?.(c.id, entry)}
-                          onDelete={
-                            onDeleteCompany
-                              ? () => {
-                                  // Close the panel (the row vanishes after the
-                                  // parent refresh) and bubble the delete up.
-                                  setExpandedId(null);
-                                  onDeleteCompany(c.id);
-                                }
-                              : undefined
-                          }
-                          onAddContact={
-                            onAddContact
-                              ? (input) => onAddContact(c.id, input)
-                              : undefined
-                          }
-                          onUpdateContact={
-                            onUpdateContact
-                              ? (kontaktId, patch) =>
-                                  onUpdateContact(c.id, kontaktId, patch)
-                              : undefined
-                          }
-                          onDeleteContact={
-                            onDeleteContact
-                              ? (kontaktId) => onDeleteContact(c.id, kontaktId)
-                              : undefined
-                          }
-                          onSetContactEmails={
-                            onSetContactEmails
-                              ? (kontaktId, emails) =>
-                                  onSetContactEmails(c.id, kontaktId, emails)
-                              : undefined
-                          }
-                        />
-                      </td>
-                    </tr>
-                  )}
                 </Fragment>
               );
             })}
@@ -934,6 +904,55 @@ export function CompanyTable({
             )}
           </tbody>
         </table>
+      </div>
+      {selected && (
+        <CompanyDetail
+          name={selected.name}
+          status={selected.status}
+          statusClass={PILL_VARIANT[selected.status as Status]}
+          avatarBg={avatarColor(selected.name)}
+          tel={selTel}
+          email={selEmail}
+          linkedin={selLi}
+          onTel={() => selTel && openTel(selTel)}
+          onMail={() => selEmail && openMail(selEmail)}
+          onLinkedIn={() => selLi && openLinkedIn(selLi)}
+          contacts={selContacts}
+          interactions={selInteractions}
+          bearbeiter={bearbeiter}
+          onSave={(entry) => onSave?.(selected.id, entry)}
+          onDelete={
+            onDeleteCompany
+              ? () => {
+                  // Close the panel (the row vanishes after the parent refresh)
+                  // and bubble the delete up.
+                  setExpandedId(null);
+                  onDeleteCompany(selected.id);
+                }
+              : undefined
+          }
+          onAddContact={
+            onAddContact ? (input) => onAddContact(selected.id, input) : undefined
+          }
+          onUpdateContact={
+            onUpdateContact
+              ? (kontaktId, patch) =>
+                  onUpdateContact(selected.id, kontaktId, patch)
+              : undefined
+          }
+          onDeleteContact={
+            onDeleteContact
+              ? (kontaktId) => onDeleteContact(selected.id, kontaktId)
+              : undefined
+          }
+          onSetContactEmails={
+            onSetContactEmails
+              ? (kontaktId, emails) =>
+                  onSetContactEmails(selected.id, kontaktId, emails)
+              : undefined
+          }
+        />
+      )}
       </div>
       )}
 

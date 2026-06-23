@@ -18,6 +18,9 @@ import {
   IconBuildingSkyscraper,
   IconTargetArrow,
   IconNote,
+  IconPhone,
+  IconMail,
+  IconBrandLinkedin,
 } from "@tabler/icons-react";
 import type { Contact } from "../data/companies";
 import type { Interaction } from "../data/interactions";
@@ -42,6 +45,24 @@ type Props = {
   contacts: Contact[];
   interactions: Interaction[];
   onSave: (entry: LogEntry) => void;
+  // Phase 07 (RDS-03): the OPTIONAL side-panel header. Rendered only when `name`
+  // is supplied (so the header-less behavior test mounts skip it entirely). The
+  // table passes name/status + a pre-resolved status→pill class (so this component
+  // never duplicates the PILL_VARIANT map) and the avatarColor hex it already uses.
+  name?: string;
+  status?: string;
+  // The status→pill class (e.g. "t-kunde"), resolved by the table from PILL_VARIANT.
+  statusClass?: string;
+  // The avatarColor(name) hex passed down from the table (same hash app-wide).
+  avatarBg?: string;
+  // The Tel/Mail/in mini-link values + click handlers. App/CompanyTable own the
+  // openTel/openMail/openLinkedIn calls (DATA-02) — only thin handlers come down.
+  tel?: string | null;
+  email?: string | null;
+  linkedin?: string | null;
+  onTel?: () => void;
+  onMail?: () => void;
+  onLinkedIn?: () => void;
   // D6-03: the configured "Erfasst als" name, threaded down to the embedded
   // LogForm. Optional (default "") so existing callers/tests that don't wire it
   // get the unset-nudge behavior without breaking — App supplies the real value.
@@ -311,6 +332,16 @@ export function CompanyDetail({
   onDeleteContact,
   onSetContactEmails,
   bearbeiter = "",
+  name,
+  status,
+  statusClass,
+  avatarBg,
+  tel,
+  email,
+  linkedin,
+  onTel,
+  onMail,
+  onLinkedIn,
 }: Props) {
   // Addition 2: the "Löschen" action uses a two-step INLINE confirm (no modal),
   // mirroring the D-08 contact-removal pattern: click Löschen → "Wirklich löschen?
@@ -329,8 +360,53 @@ export function CompanyDetail({
   );
 
   return (
-    <div className="dpanel">
-      <div className="dcol">
+    <div className="detail">
+      {name && (
+        <div className="dt-head">
+          <div className="dt-title">
+            <span className="avatar" style={{ background: avatarBg }}>
+              {name.charAt(0).toUpperCase()}
+            </span>
+            <div>
+              <h2>{name}</h2>
+              {status && (
+                <span className={`tag ${statusClass ?? ""}`}>
+                  <span className="dot" />
+                  {status}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="dt-actions">
+            <span
+              className={tel ? "minilink tel" : "minilink off"}
+              title={tel ?? undefined}
+              onClick={() => tel && onTel?.()}
+            >
+              <IconPhone size={14} />
+              Tel
+            </span>
+            <span
+              className={email ? "minilink" : "minilink off"}
+              title={email ?? undefined}
+              onClick={() => email && onMail?.()}
+            >
+              <IconMail size={14} />
+              Mail
+            </span>
+            <span
+              className={linkedin ? "minilink acc" : "minilink off"}
+              title={linkedin ?? undefined}
+              onClick={() => linkedin && onLinkedIn?.()}
+            >
+              <IconBrandLinkedin size={14} />
+              in
+            </span>
+          </div>
+        </div>
+      )}
+
+      <div className="dt-body">
         {editable ? (
           // D-08: editable Ansprechpartner block. Always shown (even with no
           // contacts) so "+ Ansprechpartner" is reachable for a freshly added
@@ -445,10 +521,8 @@ export function CompanyDetail({
             )}
           </div>
         )}
-      </div>
 
-      <div className="dcol">
-        <h4>
+        <h4 className="mt">
           <IconTargetArrow size={16} />
           Neuer Eintrag
         </h4>

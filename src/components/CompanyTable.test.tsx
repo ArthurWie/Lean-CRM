@@ -180,10 +180,14 @@ describe("CompanyTable", () => {
     );
     // The Unternehmen cell is now inline-editable (D-07), so the row-open target
     // is a non-editable cell (the Status pill). Clicking the name edits, not opens.
+    // Phase 07: the side panel ALSO renders a status pill with the same text, so
+    // scope the toggle target to the row's pill inside the table tbody.
+    const rowPill = () =>
+      document.querySelector("tbody .tag") as HTMLElement;
     expect(screen.queryByText("Verlauf (Notizen)")).toBeNull();
-    fireEvent.click(screen.getByText("Im Gespräch"));
+    fireEvent.click(rowPill());
     expect(screen.queryByText("Verlauf (Notizen)")).toBeTruthy();
-    fireEvent.click(screen.getByText("Im Gespräch"));
+    fireEvent.click(rowPill());
     expect(screen.queryByText("Verlauf (Notizen)")).toBeNull();
   });
 

@@ -115,6 +115,18 @@
   box-shadow: 0 0 0 3px var(--blue-bg);
 }
 
+/* Phase 07 (RDS-03): the detail surface is a 500px right-side panel beside the
+   table — this flex row holds the .tw scroller (flex:1) on the left and the
+   .detail panel (its own 500px width lives in CompanyDetail.css) on the right. */
+.detail-wrap {
+  display: flex;
+  min-height: 0;
+}
+.detail-wrap > .tw {
+  flex: 1;
+  min-width: 0;
+}
+
 /* Record table (RDS-03) — Twenty density: 33px rows, sticky header, hairline
    separators. `.tw` keeps overflow:auto + a min-width so the 9 columns scroll
    rather than crush (RESEARCH Pitfall 5). */
