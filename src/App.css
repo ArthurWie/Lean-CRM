@@ -3,8 +3,45 @@
    lives in CompanyTable.css. Design direction B (Linear / SaaS): light page,
    LIGHT sidebar, violet accent. Tokens from design-explorations.html
    [data-theme="B"]; the B :root tokens live in CompanyTable.css and are shared
-   app-wide via the single bundle. No web-font import — Inter is used only if
-   already bundled; system-ui / "Segoe UI" is the actual fallback render. */
+   app-wide via the single bundle. Inter (400/500/600) and DM Mono (400/500) are
+   now self-hosted as local woff2 in assets/fonts/ (declared in the font
+   declarations below); system-ui / "Segoe UI" remain the fallback stack. */
+
+@font-face {
+  font-family: "Inter";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url(./assets/fonts/inter-400.woff2) format("woff2");
+}
+@font-face {
+  font-family: "Inter";
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  src: url(./assets/fonts/inter-500.woff2) format("woff2");
+}
+@font-face {
+  font-family: "Inter";
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url(./assets/fonts/inter-600.woff2) format("woff2");
+}
+@font-face {
+  font-family: "DM Mono";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url(./assets/fonts/dmmono-400.woff2) format("woff2");
+}
+@font-face {
+  font-family: "DM Mono";
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  src: url(./assets/fonts/dmmono-500.woff2) format("woff2");
+}
 
 * {
   box-sizing: border-box;
