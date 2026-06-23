@@ -70,13 +70,7 @@ svg {
 .app {
   display: flex;
   background: var(--bg-primary);
-  border: 1px solid var(--border-medium);
-  border-radius: var(--r-md);
-  overflow: hidden;
-  box-shadow: var(--shadow-light);
   min-height: 100vh;
-  max-width: 1280px;
-  margin: 0 auto;
 }
 
 /* ---------- sidebar (232px, --gray2) ---------- */
