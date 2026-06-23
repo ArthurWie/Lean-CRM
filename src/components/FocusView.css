@@ -1,14 +1,14 @@
-/* FocusView.css — the distraction-free Focus card (direction B, Linear / SaaS).
+/* FocusView.css — the distraction-free Focus card (Twenty design system, RDS-03).
    Consumes the shared :root tokens declared in CompanyTable.css (loaded app-wide)
-   — never redeclares them. One centered white card on the off-white page; the
-   single solid-violet CTA is Anrufen (10% accent rule). Mail / in / Überspringen
-   are secondary outline buttons. Pixel rhythm matches the reused LogForm card
-   (14px card padding, 8px radii) for visual continuity. */
+   — never redeclares them. A centered 680px column: a mono progress counter, a 4px
+   accent progress bar, and one Twenty .fcard holding the company + why-now + notes
+   + Tabler contact mini-links + the reused LogForm. The single primary button is
+   Anrufen (Twenty --blue); Mail / in / Überspringen are secondary. */
 
 .focus-page {
-  background: var(--bg);
+  background: var(--gray4);
   min-height: 100%;
-  padding: 64px 26px;
+  padding: 28px 22px;
   display: flex;
   justify-content: center;
   align-items: flex-start;
@@ -16,65 +16,77 @@
 
 .focus-card {
   width: 100%;
-  max-width: 600px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  box-shadow: 0 4px 20px rgba(20, 20, 40, 0.06);
-  padding: 32px;
+  max-width: 680px;
+  background: var(--gray1);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-light);
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 18px;
 }
 
-/* Counter (Task 2) sits top, faint meta. */
+/* Counter — mono, faint meta (Twenty .progress treatment). */
 .focus-counter {
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--faint);
-  align-self: flex-end;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+/* 4px accent progress bar — width set inline by the TSX from counterX/total. */
+.pbar {
+  height: 4px;
+  background: var(--gray4);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+.pbar i {
+  display: block;
+  height: 100%;
+  background: var(--blue);
+  border-radius: var(--r-pill);
 }
 
 .focus-head {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 .focus-name {
-  font-size: 27px;
-  font-weight: 700;
+  font-size: 22px;
+  font-weight: 600;
   line-height: 1.2;
   letter-spacing: -0.3px;
-  color: var(--ink);
+  color: var(--gray12);
 }
 .focus-name .flame {
-  font-size: 27px; /* inline at the name's size (UI-02 — small, subtle, sole emoji) */
+  font-size: 20px; /* small, subtle — the sole emoji (UI-02). */
 }
 .focus-meta {
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--soft);
+  font-size: 13px;
+  color: var(--text-tertiary);
 }
 
 /* Why-now line — semantic tint per reason (NOT accent). */
 .whynow {
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 500;
   padding: 4px 9px;
-  border-radius: 7px;
+  border-radius: var(--r-sm);
   align-self: flex-start;
 }
 .whynow.due {
-  color: var(--amber);
-  background: var(--amber-soft);
+  color: var(--amber11);
+  background: var(--amber-bg);
 }
 .whynow.hot {
-  color: var(--hot);
-  background: var(--hot-soft);
+  color: var(--orange11);
+  background: var(--orange-bg);
 }
 .whynow.neu {
-  color: var(--soft);
-  background: var(--line2);
+  color: var(--text-secondary);
+  background: var(--gray4);
 }
 
 /* Pre-call context — Letzte Notizen + Lessons learned. */
@@ -82,7 +94,7 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--faint);
+  color: var(--text-tertiary);
   margin: 0 0 10px;
 }
 .focus-context h4.mt {
@@ -94,67 +106,79 @@
   gap: 12px;
 }
 .ctx-hi {
-  font-size: 12.5px;
-  color: var(--ink);
+  font-size: 13px;
+  color: var(--gray12);
   line-height: 1.5;
 }
 .ctx-hm {
-  color: var(--faint);
+  color: var(--text-tertiary);
   font-size: 11px;
   margin-bottom: 2px;
 }
 .ctx-hi .by {
   font-size: 10px;
-  font-weight: 700;
-  background: var(--accent-soft);
-  color: var(--accent);
-  border-radius: 7px;
+  font-weight: 600;
+  background: var(--blue-bg);
+  color: var(--blue11);
+  border-radius: var(--r-sm);
   padding: 2px 8px;
   margin-left: 5px;
   white-space: nowrap;
 }
 .ctx-empty,
 .ctx-lessons {
-  font-size: 12.5px;
-  color: var(--soft);
+  font-size: 13px;
+  color: var(--text-tertiary);
   line-height: 1.5;
 }
 
-/* Action row — one solid-violet Anrufen CTA + secondary outline Mail / in. */
+/* Action row — Anrufen is the primary Twenty button; Mail / in are secondary. */
 .focus-actions {
   display: flex;
   gap: 8px;
   align-items: center;
 }
 .act-call {
-  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font);
   font-size: 14px;
-  font-weight: 600;
-  padding: 10px 22px;
-  border-radius: 8px;
-  border: 1px solid var(--accent);
-  background: var(--accent);
+  font-weight: 500;
+  padding: 0 18px;
+  height: 38px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--blue);
+  background: var(--blue);
   color: #fff;
   cursor: pointer;
-  box-shadow: 0 1px 3px rgba(99, 102, 241, 0.3);
+}
+.act-call svg {
+  color: #fff;
 }
 .act-call:hover:not(:disabled) {
-  filter: brightness(1.05);
+  background: var(--blue-hover);
 }
 .act-sec {
-  font-family: inherit;
-  font-size: 12.5px;
-  font-weight: 600;
-  padding: 8px 15px;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--soft);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0 13px;
+  height: 38px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--gray1);
+  color: var(--text-secondary);
   cursor: pointer;
 }
+.act-sec svg {
+  color: var(--gray9);
+}
 .act-sec:hover:not(:disabled) {
-  color: var(--ink);
-  border-color: var(--faint);
+  background: var(--gray3);
 }
 .act-call:disabled,
 .act-sec:disabled {
@@ -162,25 +186,25 @@
   cursor: not-allowed;
 }
 
-/* Skip — secondary, non-destructive (D-05/D-08). */
+/* Skip — subtle secondary, non-destructive (D-05/D-08). */
 .focus-foot {
   display: flex;
   justify-content: center;
 }
 .act-skip {
-  font-family: inherit;
-  font-size: 12.5px;
-  font-weight: 600;
-  padding: 8px 15px;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--soft);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0 13px;
+  height: 32px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--gray1);
+  color: var(--text-secondary);
   cursor: pointer;
 }
 .act-skip:hover {
-  color: var(--ink);
-  border-color: var(--faint);
+  background: var(--gray3);
 }
 
 /* Completion (D-09) + empty-start (D-10) screens — centered, neutral ink. */
@@ -194,26 +218,28 @@
 }
 .focus-end h2 {
   font-size: 18px;
-  font-weight: 700;
-  color: var(--ink);
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  color: var(--gray12);
   margin: 0;
 }
 .focus-end p {
   font-size: 13px;
-  color: var(--soft);
+  color: var(--text-tertiary);
   margin: 0;
 }
 .focus-back {
-  font-family: inherit;
-  font-size: 12.5px;
-  font-weight: 600;
-  padding: 8px 15px;
-  border-radius: 8px;
-  border: 1px solid var(--accent);
-  background: var(--accent);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0 14px;
+  height: 32px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--blue);
+  background: var(--blue);
   color: #fff;
   cursor: pointer;
 }
 .focus-back:hover {
-  filter: brightness(1.05);
+  background: var(--blue-hover);
 }
