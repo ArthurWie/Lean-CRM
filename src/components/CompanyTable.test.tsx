@@ -99,15 +99,17 @@ describe("CompanyTable", () => {
     expect(screen.queryByRole("button", { name: "🔥 Heiß" })).toBeNull();
   });
 
-  it("the simplified toolbar keeps Suchen, Aktiv, Zuletzt gelöscht, CSV importieren, + Neue Firma and Fokus (SET-05)", () => {
+  it("the view toolbar keeps Suchen + the Aktiv/Zuletzt-gelöscht view tabs; Import/Neue-Firma/Fokus moved to the topbar (RDS-02)", () => {
     render(<CompanyTable companies={[company({ id: "1", name: "Acme GmbH", status: "Neu" })]} />);
     expect(screen.getByPlaceholderText("Suchen…")).toBeTruthy();
+    // The Aktiv / Zuletzt-gelöscht view switch is now .vtab spans with role=button.
     expect(screen.getByRole("button", { name: "Aktiv" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Zuletzt gelöscht" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "CSV importieren" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "+ Neue Firma" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Fokus" })).toBeTruthy();
-    // ...and the two removed filter buttons are gone.
+    // Import, Neue Firma and Fokus moved out of the table (App.tsx topbar / sidebar).
+    expect(screen.queryByRole("button", { name: "CSV importieren" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "+ Neue Firma" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Fokus" })).toBeNull();
+    // ...and the legacy filter buttons remain gone.
     expect(screen.queryByRole("button", { name: "Tot/Geparkt" })).toBeNull();
     expect(screen.queryByRole("button", { name: "🔥 Heiß" })).toBeNull();
   });
@@ -142,13 +144,15 @@ describe("CompanyTable", () => {
         ]}
       />,
     );
+    // Twenty .tag pills (RDS-03): the status text lives in the .tag span; assert its
+    // .t-* variant class (full 7-status mapping; Tot/Geparkt are exercised elsewhere).
     const pillClass = (text: string) =>
-      screen.getByText(text).className;
-    expect(pillClass("Neu")).toContain("neu");
-    expect(pillClass("Offen")).toContain("offen");
-    expect(pillClass("Im Gespräch")).toContain("gespraech");
-    expect(pillClass("Termin")).toContain("termin");
-    expect(pillClass("Kein Interesse")).toContain("kein");
+      (screen.getByText(text).closest(".tag") as HTMLElement).className;
+    expect(pillClass("Neu")).toContain("t-neu");
+    expect(pillClass("Offen")).toContain("t-kontaktiert");
+    expect(pillClass("Im Gespräch")).toContain("t-interessiert");
+    expect(pillClass("Termin")).toContain("t-kunde");
+    expect(pillClass("Kein Interesse")).toContain("t-tot");
   });
 
   it("shows the no-companies empty state when given an empty list", () => {
@@ -255,11 +259,29 @@ describe("CompanyTable", () => {
       expect(openUrl).toHaveBeenCalledWith("https://linkedin.com/in/eva-mandl");
     });
 
-    it("greys out a span (ci off) when its data is missing and the click is a no-op", () => {
+    it("renders an em-dash instead of chips when a contact has no Tel/Mail/in data (RDS-03)", () => {
       renderWithContact(contact({ id: "k2", firma_id: "1" })); // no telefon/email/linkedin
-      const tel = screen.getByText("Tel");
-      expect(tel.className).toContain("off");
-      fireEvent.click(tel);
+      // With zero contact data the Kontakt cell shows the muted em-dash, not chips.
+      expect(screen.queryByText("Tel")).toBeNull();
+      const cell = screen
+        .getByText("Himmelhoch GmbH")
+        .closest("tr")
+        ?.querySelector(".muted-cell");
+      expect(cell?.textContent).toBe("—");
+      expect(openUrl).not.toHaveBeenCalled();
+    });
+
+    it("greys out only the missing chips (minilink off) when some contact data is present", () => {
+      // Only a phone number → Tel enabled, Mail + in are .minilink off no-ops.
+      renderWithContact(
+        contact({ id: "k3", firma_id: "1", telefon: "+43 1 999" }),
+      );
+      const mail = screen.getByText("Mail");
+      const li = screen.getByText("in");
+      expect(mail.className).toContain("off");
+      expect(li.className).toContain("off");
+      fireEvent.click(mail);
+      fireEvent.click(li);
       expect(openUrl).not.toHaveBeenCalled();
     });
   });
@@ -369,29 +391,45 @@ describe("CompanyTable", () => {
   });
 
   describe("manual add + inline editing (DB-07, D-05/06/07)", () => {
-    it("the + Neue Firma button is enabled (not disabled)", () => {
-      render(<CompanyTable companies={[company({ id: "1", name: "Acme GmbH", status: "Neu" })]} />);
-      const btn = screen.getByRole("button", { name: "+ Neue Firma" }) as HTMLButtonElement;
-      expect(btn.disabled).toBe(false);
-    });
-
-    it("clicking + Neue Firma renders an editable row at the top with a Neu pill", () => {
-      render(<CompanyTable companies={[company({ id: "1", name: "Acme GmbH", status: "Offen" })]} />);
-      expect(screen.queryByPlaceholderText("Unternehmen")).toBeNull();
+    // Phase 07: the in-table "+ Neue Firma" button moved to the App.tsx topbar; the
+    // table now opens its add-draft row when the `addRequest` nonce bumps. This
+    // harness stands in for that topbar button so the add tests drive the real path.
+    function AddHarness(
+      props: Omit<Parameters<typeof CompanyTable>[0], "addRequest">,
+    ) {
+      const [n, setN] = useState(0);
+      return (
+        <>
+          <button type="button" onClick={() => setN((x) => x + 1)}>
+            + Neue Firma
+          </button>
+          <CompanyTable {...props} addRequest={n} />
+        </>
+      );
+    }
+    const openDraft = () =>
       fireEvent.click(screen.getByRole("button", { name: "+ Neue Firma" }));
+
+    it("bumping addRequest renders an editable draft row at the top with a Neu pill", () => {
+      render(<AddHarness companies={[company({ id: "1", name: "Acme GmbH", status: "Offen" })]} />);
+      expect(screen.queryByPlaceholderText("Unternehmen")).toBeNull();
+      openDraft();
       // The draft name input appears...
       const nameInput = screen.getByPlaceholderText("Unternehmen");
       expect(nameInput).toBeTruthy();
       // ...inside the FIRST body row (pinned at the top).
       const firstRow = document.querySelector("tbody tr") as HTMLElement;
       expect(within(firstRow).queryByPlaceholderText("Unternehmen")).toBeTruthy();
-      // The draft row shows a Neu status pill.
-      expect(within(firstRow).getByText("Neu").className).toContain("neu");
+      // The draft row shows a Neu Twenty .tag pill.
+      expect(
+        (within(firstRow).getByText("Neu").closest(".tag") as HTMLElement)
+          .className,
+      ).toContain("t-neu");
     });
 
     it("the inline-add row aligns to the 9-column grid and Speichern lives in its own full-width action row (regression: clipped Speichern)", () => {
-      render(<CompanyTable companies={[company({ id: "1", name: "Acme GmbH", status: "Offen" })]} />);
-      fireEvent.click(screen.getByRole("button", { name: "+ Neue Firma" }));
+      render(<AddHarness companies={[company({ id: "1", name: "Acme GmbH", status: "Offen" })]} />);
+      openDraft();
 
       // The draft data row mirrors the header exactly: 9 cells, one per column.
       const draftRow = screen
@@ -413,12 +451,12 @@ describe("CompanyTable", () => {
     it("Save is blocked while Unternehmen is empty and does not call onAddCompany", () => {
       const onAddCompany = vi.fn();
       render(
-        <CompanyTable
+        <AddHarness
           companies={[company({ id: "1", name: "Acme GmbH", status: "Offen" })]}
           onAddCompany={onAddCompany}
         />,
       );
-      fireEvent.click(screen.getByRole("button", { name: "+ Neue Firma" }));
+      openDraft();
       const save = screen.getByRole("button", { name: "Speichern" }) as HTMLButtonElement;
       expect(save.disabled).toBe(true);
       fireEvent.click(save);
@@ -428,12 +466,12 @@ describe("CompanyTable", () => {
     it("typing a name then Saving calls onAddCompany and clears the draft row", () => {
       const onAddCompany = vi.fn();
       render(
-        <CompanyTable
+        <AddHarness
           companies={[company({ id: "1", name: "Acme GmbH", status: "Offen" })]}
           onAddCompany={onAddCompany}
         />,
       );
-      fireEvent.click(screen.getByRole("button", { name: "+ Neue Firma" }));
+      openDraft();
       fireEvent.change(screen.getByPlaceholderText("Unternehmen"), {
         target: { value: "Neue Firma GmbH" },
       });
@@ -802,8 +840,25 @@ describe("CompanyTable", () => {
     });
 
     it("right-clicking the inline-add draft row does NOT open the menu", () => {
-      tableWithRow();
-      fireEvent.click(screen.getByRole("button", { name: "+ Neue Firma" }));
+      // Open the draft via the addRequest path (the in-table button is gone now).
+      function Harness() {
+        const [n, setN] = useState(0);
+        return (
+          <>
+            <button type="button" onClick={() => setN((x) => x + 1)}>
+              open
+            </button>
+            <CompanyTable
+              companies={[company({ id: "1", name: "Acme GmbH", status: "Offen" })]}
+              interactionsByFirma={{ "1": [] }}
+              onDeleteCompany={vi.fn()}
+              addRequest={n}
+            />
+          </>
+        );
+      }
+      render(<Harness />);
+      fireEvent.click(screen.getByRole("button", { name: "open" }));
       const draftRow = screen
         .getByPlaceholderText("Unternehmen")
         .closest("tr") as HTMLElement;
