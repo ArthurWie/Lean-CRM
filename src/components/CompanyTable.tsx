@@ -30,18 +30,38 @@ import type { LogEntry } from "./LogForm";
 import { openLinkedIn, openMail, openTel } from "../lib/contactActions";
 import { DEAD, visibleCompanies } from "../data/filterSort";
 import { shortDate } from "../utils/date";
+import {
+  IconPhone,
+  IconMail,
+  IconBrandLinkedin,
+  IconPlus,
+  IconDotsVertical,
+} from "@tabler/icons-react";
 import "./CompanyTable.css";
 
-// Status pill → mockup variant class (UI-SPEC Status pill → color map).
+// Status pill → Twenty tag variant class (RDS-03; UI-SPEC §Status tag pills).
+// Covers ALL 7 derived statuses from derive.ts. Derivation is untouched — this is
+// purely the real-vocabulary → pill-class lookup.
 const PILL_VARIANT: Record<Status, string> = {
-  Neu: "neu",
-  Offen: "offen",
-  "Im Gespräch": "gespraech",
-  Termin: "termin",
-  "Kein Interesse": "kein",
-  Tot: "tot",
-  Geparkt: "tot",
+  Neu: "t-neu",
+  Offen: "t-kontaktiert",
+  "Im Gespräch": "t-interessiert",
+  Termin: "t-kunde",
+  "Kein Interesse": "t-tot",
+  Tot: "t-tot",
+  Geparkt: "t-geparkt",
 };
+
+// Deterministic cosmetic avatar tint: hash the company name to one of the Twenty
+// accent palette hexes (RDS-03 avatar tile). Pure — no state, no data layer.
+const AVATAR_COLORS = ["#3e63dd", "#30a46c", "#8e4ec6", "#f76b15", "#0091c4"];
+function avatarColor(name: string): string {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) {
+    h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  }
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
 
 const EMPTY = "—"; // em dash for empty cells
 
@@ -221,8 +241,13 @@ function NameCell({
         begin(name);
       }}
     >
-      {name}
-      {heiss && <span className="fire">🔥</span>}
+      <span className="cellfirm">
+        <span className="avatar" style={{ background: avatarColor(name) }}>
+          {name.charAt(0).toUpperCase()}
+        </span>
+        {name}
+        {heiss && <span className="fire">🔥</span>}
+      </span>
     </td>
   );
 }
@@ -335,18 +360,13 @@ type Props = {
     kontaktId: string,
     emails: string[],
   ) => void;
-  // D-11: opens Focus mode. The toolbar "Fokus" button is the canonical launcher;
+  // D-11: opens Focus mode. The sidebar "Fokus" nav row is the canonical launcher;
   // App snapshots getFocusSnapshot() once and mounts FocusView.
   onOpenFocus?: () => void;
-  // Phase 5 (IMPORT-01/D-06): the "CSV importieren" button picks a .csv via a
-  // hidden file input; this fires with the chosen File. App reads file.text() →
-  // parseCsv → validateHeader → classifyRows → preview. The table never touches
-  // the data layer (DATA-02) — it only hands the File up.
-  onImport?: (file: File) => void;
   // Phase 07 (RDS-02): a request nonce bumped by the topbar "Neue Firma" button in
-  // App.tsx. Each increment asks the table to open its add-draft row. Declared here
-  // so App.tsx type-checks now; Plan 02 wires the actual draft-open behaviour. App
-  // never touches the data layer for this — it only emits a counter (DATA-02 holds).
+  // App.tsx. Each increment asks the table to open its add-draft row. Import is now
+  // owned by the topbar (App reads file.text() → parse → preview), so CompanyTable
+  // no longer carries an onImport prop — the SQL boundary (DATA-02) stays in App.
   addRequest?: number;
   // D6-03: the configured "Erfasst als" name, threaded down to the embedded
   // CompanyDetail → LogForm. Optional (default "") so existing tests get the
@@ -373,15 +393,10 @@ export function CompanyTable({
   onUpdateContact,
   onDeleteContact,
   onSetContactEmails,
-  onOpenFocus,
-  onImport,
+  addRequest,
   bearbeiter = "",
   trashViewInitially = false,
 }: Props) {
-  // Phase 5: hidden file input the "CSV importieren" button triggers. Its value is
-  // reset after each pick so re-selecting the SAME file re-fires `change` (a native
-  // input only fires change when the value differs — RESEARCH Environment note).
-  const importInputRef = useRef<HTMLInputElement>(null);
   // "Zuletzt gelöscht": when true, the trash view replaces the normal table.
   const [trashView, setTrashView] = useState(trashViewInitially);
   // The trash row currently in its inline "Wirklich löschen?" confirm, or null.
@@ -427,6 +442,13 @@ export function CompanyTable({
       document.removeEventListener("keydown", onKey);
     };
   }, [contextMenu]);
+
+  // Phase 07 (RDS-02): the topbar "Neue Firma" button bumps `addRequest`; each
+  // bump opens the add-draft row (the in-table "+ Neue Firma" button is gone). The
+  // `if (addRequest)` guard skips the initial 0 so the draft isn't open on mount.
+  useEffect(() => {
+    if (addRequest) setAddDraft((d) => d ?? { ...EMPTY_DRAFT });
+  }, [addRequest]);
 
   // Build the data-layer input from the draft, dropping empty optional fields.
   function saveAddDraft() {
@@ -476,24 +498,25 @@ export function CompanyTable({
 
   return (
     <>
-      <div className="toolbar">
-        <input
-          className="search"
-          placeholder="Suchen…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <button
-          className={!trashView ? "filt on" : "filt"}
-          type="button"
+      {/* View toolbar (RDS-02): the Twenty `.viewbar`. The `.vtab` view tabs re-tone
+          the existing wired Aktiv / Zuletzt-gelöscht toggle (handlers unchanged;
+          active tab = --gray4 fill). The dashed `.chip` "Filter" and the overflow
+          IconDotsVertical are render-only affordances per the approved mockup. Import
+          + Neue Firma live in the App.tsx topbar now (Plan 01). */}
+      <div className="viewbar">
+        <span
+          className={!trashView ? "vtab active" : "vtab"}
+          role="button"
+          tabIndex={0}
           aria-pressed={!trashView}
           onClick={() => setTrashView(false)}
         >
           Aktiv
-        </button>
-        <button
-          className={trashView ? "filt on" : "filt"}
-          type="button"
+        </span>
+        <span
+          className={trashView ? "vtab active" : "vtab"}
+          role="button"
+          tabIndex={0}
           aria-pressed={trashView}
           onClick={() => {
             setTrashView(true);
@@ -501,46 +524,21 @@ export function CompanyTable({
           }}
         >
           Zuletzt gelöscht
-        </button>
-        <button
-          className="impbtn"
-          type="button"
-          onClick={() => importInputRef.current?.click()}
-        >
-          CSV importieren
-        </button>
-        {/* Visually hidden, triggered programmatically by the button above. Reset
-            value after each pick so the same file re-fires change (D-06). */}
+        </span>
+        <span className="chip">
+          <IconPlus size={14} />
+          Filter
+        </span>
         <input
-          ref={importInputRef}
-          type="file"
-          accept=".csv"
-          style={{ display: "none" }}
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            e.target.value = "";
-            if (file) onImport?.(file);
-          }}
+          className="search"
+          placeholder="Suchen…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
         />
-        {/* Add + Fokus are hidden in the trash view — it is read-only except restore/purge. */}
-        {!trashView && (
-          <>
-            <button
-              className="addbtn"
-              type="button"
-              onClick={() => onOpenFocus?.()}
-            >
-              Fokus
-            </button>
-            <button
-              className="addbtn"
-              type="button"
-              onClick={() => setAddDraft((d) => d ?? { ...EMPTY_DRAFT })}
-            >
-              + Neue Firma
-            </button>
-          </>
-        )}
+        <div style={{ flex: 1 }} />
+        <span className="vtab">
+          <IconDotsVertical size={16} />
+        </span>
       </div>
 
       {trashView && (
@@ -687,7 +685,10 @@ export function CompanyTable({
                 <td className="dim">{EMPTY}</td>
                 <td className="dim">{EMPTY}</td>
                 <td>
-                  <span className="stp neu">Neu</span>
+                  <span className="tag t-neu">
+                    <span className="dot" />
+                    Neu
+                  </span>
                 </td>
                 <td className="next dim">{EMPTY}</td>
                 <td className="notiz dim">{EMPTY}</td>
@@ -776,45 +777,53 @@ export function CompanyTable({
                     />
                     <td className="dim">{apName || EMPTY}</td>
                     <td>
-                      <span className="cIcons">
-                        {/* CONTACT-01/02/03: enabled only when data present;
-                            title reveals the value on hover (D-02); click fires
-                            the OS-shell URL and stopPropagation keeps the row
-                            from toggling (Pitfall 3, D-03 no confirmation). */}
-                        <span
-                          className={tel ? "ci tel" : "ci off"}
-                          title={tel ?? undefined}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (tel) openTel(tel);
-                          }}
-                        >
-                          Tel
+                      {tel || primaryEmail || li ? (
+                        <span className="linkrow">
+                          {/* CONTACT-01/02/03: enabled only when data present;
+                              title reveals the value on hover (D-02); click fires
+                              the OS-shell URL and stopPropagation keeps the row
+                              from toggling (Pitfall 3, D-03 no confirmation). */}
+                          <span
+                            className={tel ? "minilink tel" : "minilink off"}
+                            title={tel ?? undefined}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (tel) openTel(tel);
+                            }}
+                          >
+                            <IconPhone size={14} />
+                            Tel
+                          </span>
+                          <span
+                            className={primaryEmail ? "minilink" : "minilink off"}
+                            title={primaryEmail ?? undefined}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (primaryEmail) openMail(primaryEmail);
+                            }}
+                          >
+                            <IconMail size={14} />
+                            Mail
+                          </span>
+                          <span
+                            className={li ? "minilink acc" : "minilink off"}
+                            title={li ?? undefined}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (li) openLinkedIn(li);
+                            }}
+                          >
+                            <IconBrandLinkedin size={14} />
+                            in
+                          </span>
                         </span>
-                        <span
-                          className={primaryEmail ? "ci" : "ci off"}
-                          title={primaryEmail ?? undefined}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (primaryEmail) openMail(primaryEmail);
-                          }}
-                        >
-                          Mail
-                        </span>
-                        <span
-                          className={li ? "ci li acc" : "ci off"}
-                          title={li ?? undefined}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (li) openLinkedIn(li);
-                          }}
-                        >
-                          in
-                        </span>
-                      </span>
+                      ) : (
+                        <span className="muted-cell">{EMPTY}</span>
+                      )}
                     </td>
                     <td>
-                      <span className={`stp ${PILL_VARIANT[c.status as Status]}`}>
+                      <span className={`tag ${PILL_VARIANT[c.status as Status]}`}>
+                        <span className="dot" />
                         {c.status}
                       </span>
                     </td>
