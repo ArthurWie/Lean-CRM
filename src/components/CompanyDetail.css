@@ -1,29 +1,37 @@
-/* CompanyDetail.css — the inline expand panel (.dpanel) ported from
-   lean-crm-mockup.html lines 84-99 to design direction B (Linear / SaaS).
-   STRUCTURE + German copy from the mockup; COLORS + radii from direction B
-   (the :root tokens declared in CompanyTable.css, loaded app-wide). The mockup's
-   2px corners on cards/badges are superseded (D-09). The ONE 2px the UI-SPEC
-   keeps is the violet accent TOP-BORDER on the detail panel (01-UI-SPEC.md
-   line 138). The .log form styles live in LogForm.css. */
+/* CompanyDetail.css — the inline expand panel (.dpanel), restyled to the Twenty
+   design system (Phase 7). STRUCTURE + German copy carry over; COLORS + radii are
+   the Twenty :root tokens declared in CompanyTable.css (loaded app-wide). The panel
+   now reads as a Twenty side panel: a --gray1 surface with --border-light hairlines.
+   The previously-locked direction-B "2px violet accent top-border" is REMOVED
+   (07-UI-SPEC.md line 205, superseded). Section headers adopt the Twenty .sec-h
+   treatment (12px/600 --text-secondary + leading Tabler icon); note history rows
+   adopt the .note treatment (2px left border + mono timestamp). The .log form styles
+   live in LogForm.css. */
 
 .dpanel {
   padding: 16px 18px;
   display: grid;
   grid-template-columns: 1.1fr 1fr;
   gap: 22px;
-  border-top: 2px solid var(--accent); /* UI-SPEC: 2px violet accent top-border */
-  background: var(--bg);
+  background: var(--gray1);
 }
 
+/* Section headers — Twenty .sec-h: 12px/600 secondary text + leading icon. */
 .dcol h4 {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--faint);
-  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.dcol h4 svg {
+  color: var(--gray8);
+  flex-shrink: 0;
 }
 .dcol h4.mt {
-  margin-top: 16px;
+  margin-top: 20px;
 }
 
 /* Ansprechpartner */
@@ -32,128 +40,117 @@
   align-items: center;
   gap: 10px;
   padding: 8px 0;
-  border-bottom: 1px dashed var(--line);
+  border-bottom: 1px solid var(--border-light);
 }
 .person:last-of-type {
   border-bottom: none;
 }
 .person .pn {
   font-weight: 600;
-  color: var(--ink);
+  color: var(--gray12);
 }
 .person .pr {
-  color: var(--faint);
+  color: var(--text-tertiary);
   font-size: 12px;
 }
 .badge {
-  font-size: 10.5px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 500;
   padding: 2px 7px;
-  border-radius: 7px;
-  background: var(--accent-soft);
-  color: var(--accent);
+  border-radius: var(--r-sm);
+  background: var(--blue-bg);
+  color: var(--blue11);
   margin-left: 6px;
 }
 
-/* Verlauf (Notizen) history — vertical timeline, newest-first */
+/* Verlauf (Notizen) history — Twenty .note rows: 2px left border + mono timestamp,
+   newest-first. The legacy vertical-timeline dot is superseded by the left border. */
 .hist {
-  position: relative;
-  padding-left: 16px;
   margin-top: 4px;
 }
-.hist::before {
-  content: "";
-  position: absolute;
-  left: 4px;
-  top: 5px;
-  bottom: 5px;
-  width: 2px;
-  background: var(--line);
-}
 .hi {
-  position: relative;
+  border-left: 2px solid var(--border-strong);
+  padding: 3px 0 3px 11px;
   margin-bottom: 12px;
-  font-size: 12.5px;
-  color: var(--ink);
+  font-size: 13px;
+  color: var(--gray12);
   line-height: 1.5;
 }
 .hi:last-child {
   margin-bottom: 0;
 }
+/* The dot is retired in the Twenty note idiom (left border replaces the timeline). */
 .hi .dot {
-  position: absolute;
-  left: -16px;
-  top: 3px;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--accent);
+  display: none;
 }
 .hi .hm {
-  color: var(--faint);
+  color: var(--text-tertiary);
   font-size: 11px;
+  font-family: var(--mono);
   margin-bottom: 2px;
 }
 .by {
-  font-size: 10px;
-  font-weight: 700;
-  background: var(--accent-soft);
-  color: var(--accent);
-  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font);
+  background: var(--blue-bg);
+  color: var(--blue11);
+  border-radius: var(--r-sm);
   padding: 2px 8px;
   margin-left: 5px;
   white-space: nowrap;
 }
 
 .hist-empty {
-  font-size: 12.5px;
-  color: var(--faint);
+  font-size: 13px;
+  color: var(--text-tertiary);
 }
 
-/* Addition 2: Löschen action + inline confirm. Corporate / Excel style — TEXT
-   buttons, sharp 2px corners, muted navy (no playful color). The destructive
-   "Ja, löschen" gets a restrained muted-danger tint so it reads as the dangerous
-   choice without shouting. The inline confirm is the sole accidental-click guard. */
+/* Löschen action + inline confirm. Twenty neutral text buttons (--gray1 bg,
+   --border-strong border, --text-secondary text); the destructive "Ja, löschen"
+   uses the Twenty danger recipe (--red-bg bg, --red5 border, --red11 text) so it
+   reads as the dangerous choice without shouting. The inline confirm is the sole
+   accidental-click guard. */
 .danger-zone {
   margin-top: 16px;
   padding-top: 12px;
-  border-top: 1px dashed var(--line);
+  border-top: 1px solid var(--border-light);
 }
 .del-trigger,
 .del-yes,
 .del-cancel {
   font-family: inherit;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   padding: 4px 9px;
-  border-radius: 2px; /* sharp corners (corporate look) */
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--soft);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--gray1);
+  color: var(--text-secondary);
   cursor: pointer;
 }
 .del-trigger:hover {
-  color: var(--ink);
-  border-color: var(--faint);
+  color: var(--gray12);
+  background: var(--gray3);
 }
 .confirm-del {
   font-size: 12px;
-  color: var(--soft);
+  color: var(--text-secondary);
   display: inline-flex;
   align-items: center;
   gap: 8px;
 }
 .del-yes {
-  color: #b3261e; /* muted danger — restrained, not playful */
-  border-color: #e3b4b0;
-  background: #fcf3f2;
+  color: var(--red11);
+  border-color: var(--red5);
+  background: var(--red-bg);
 }
 .del-yes:hover {
-  background: #f8e7e5;
+  filter: brightness(0.97);
 }
 .del-cancel:hover {
-  color: var(--ink);
-  border-color: var(--faint);
+  color: var(--gray12);
+  background: var(--gray3);
 }
 
 /* D-08 (Plan 03-04): editable Ansprechpartner block. Each person is a row of
@@ -189,40 +186,40 @@
   padding-top: 2px;
 }
 .person-remove:hover {
-  color: var(--hot);
-  border-color: var(--hot);
+  color: var(--red11);
+  border-color: var(--red5);
 }
 
-/* "+ Ansprechpartner" add affordance — a neutral text action below the list. */
+/* "+ Ansprechpartner" add affordance — a neutral Twenty text action below the list. */
 .add-contact {
   font-family: inherit;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   margin-top: 8px;
   padding: 4px 9px;
-  border-radius: 2px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--soft);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--gray1);
+  color: var(--text-secondary);
   cursor: pointer;
 }
 .add-contact:hover {
-  color: var(--ink);
-  border-color: var(--faint);
+  color: var(--gray12);
+  background: var(--gray3);
 }
 
-/* The add-person Speichern/Abbrechen actions reuse the existing .save/.cancel
-   look from the log/add chrome (defined app-wide); ensure they sit inline here. */
+/* The add-person Speichern/Abbrechen actions — neutral Twenty text buttons sitting
+   inline (the primary log Speichern lives in LogForm; these stay neutral). */
 .person-add .person-actions .save,
 .person-add .person-actions .cancel {
   font-family: inherit;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   padding: 4px 9px;
-  border-radius: 2px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--soft);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--gray1);
+  color: var(--text-secondary);
   cursor: pointer;
 }
 .person-add .person-actions .save:disabled {
@@ -231,6 +228,6 @@
 }
 .person-add .person-actions .save:not(:disabled):hover,
 .person-add .person-actions .cancel:hover {
-  color: var(--ink);
-  border-color: var(--faint);
+  color: var(--gray12);
+  background: var(--gray3);
 }

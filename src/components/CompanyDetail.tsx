@@ -14,6 +14,11 @@
 // via the onAddContact / onUpdateContact / onDeleteContact / onSetContactEmails
 // callback props. Removal uses an inline confirm (no modal), mirroring Löschen.
 import { useEffect, useRef, useState } from "react";
+import {
+  IconBuildingSkyscraper,
+  IconTargetArrow,
+  IconNote,
+} from "@tabler/icons-react";
 import type { Contact } from "../data/companies";
 import type { Interaction } from "../data/interactions";
 import { LogForm, type LogEntry } from "./LogForm";
@@ -331,7 +336,10 @@ export function CompanyDetail({
           // contacts) so "+ Ansprechpartner" is reachable for a freshly added
           // company that has none yet.
           <>
-            <h4>Ansprechpartner</h4>
+            <h4>
+              <IconBuildingSkyscraper size={16} />
+              Ansprechpartner
+            </h4>
             {contacts.map((c) => (
               <EditablePerson
                 key={c.id}
@@ -363,7 +371,10 @@ export function CompanyDetail({
           // Read-only Phase-2 block (no contact handlers wired).
           contacts.length > 0 && (
             <>
-              <h4>Ansprechpartner</h4>
+              <h4>
+                <IconBuildingSkyscraper size={16} />
+                Ansprechpartner
+              </h4>
               {contacts.map((c) => (
                 <div className="person" key={c.id}>
                   <div>
@@ -380,6 +391,7 @@ export function CompanyDetail({
         )}
 
         <h4 className={editable || contacts.length > 0 ? "mt" : undefined}>
+          <IconNote size={16} />
           Verlauf (Notizen)
         </h4>
         {history.length === 0 ? (
@@ -436,7 +448,10 @@ export function CompanyDetail({
       </div>
 
       <div className="dcol">
-        <h4>Neuer Eintrag</h4>
+        <h4>
+          <IconTargetArrow size={16} />
+          Neuer Eintrag
+        </h4>
         <LogForm onSave={onSave} bearbeiter={bearbeiter} />
       </div>
     </div>
