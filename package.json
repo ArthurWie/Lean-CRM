@@ -12,6 +12,7 @@
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
+    "@tabler/icons-react": "^3.41.1",
     "@tauri-apps/api": "2.11.1",
     "@tauri-apps/plugin-opener": "2.5.4",
     "@tauri-apps/plugin-sql": "2.4.0",
