@@ -1,32 +1,75 @@
-/* Einstellungen view. Reuses direction-B tokens + existing classes verbatim
-   (.filt tab strip, .cell-input fields, .save button, .danger-zone, .del-yes,
-   .stp.tot, .row-dead). No new color / font / radius — only layout glue. */
+/* Einstellungen view — Twenty stacked cards (RDS-03). Consumes the shared Twenty
+   :root tokens from CompanyTable.css (do NOT redefine :root here). Keeps the
+   existing class names (.settings/.settings-tabs/.filt/.settings-sec/.danger-zone/
+   .del-yes) and retokens them onto the Twenty palette: gray-bordered cards with a
+   14px/600 title hairline, the Daten danger card on the --red family, and the
+   clear-all button as the .btn-danger recipe. The Stillgelegte dead pills now use
+   the app-global .tag/.t-* family (CompanyTable.css). Layout/restyle only. */
 
 .settings {
-  max-width: 640px;
+  max-width: 680px;
 }
 
-/* Tab strip — the .filt pills sit in a row with the standard sm gap. */
+/* Tab strip — adopt the Twenty .vtab treatment: gray-fill active pill, medium
+   weight, gray secondary text. Local override of the global .filt pills. */
 .settings-tabs {
   display: flex;
-  gap: 8px;
-  margin-bottom: 22px;
+  gap: 4px;
+  margin-bottom: 18px;
+}
+.settings-tabs .filt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border: none;
+  background: none;
+  border-radius: var(--r-sm);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.settings-tabs .filt:hover {
+  background: var(--gray4);
+}
+.settings-tabs .filt.on {
+  background: var(--gray4);
+  color: var(--gray12);
 }
 
+/* Card shell — 1px medium border, --r-md, white surface, stacked with a gap. */
 .settings-sec {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 18px;
+  background: var(--gray1);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--r-md);
+  margin-bottom: 18px;
+  padding: 0;
 }
 
-/* Uppercase 11px section label — mirrors the .dcol h4 pattern. */
+/* Card title — 14px/600 with a bottom hairline (mockup .card h3). */
 .settings-sec h4 {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--faint);
-  margin: 0 0 14px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+  text-transform: none;
+  color: var(--text-primary);
+  margin: 0;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+/* The card body wraps everything after the title (mockup .card .body padding). */
+.settings-sec > :not(h4) {
+  margin-left: 18px;
+  margin-right: 18px;
+}
+.settings-sec > :nth-child(2) {
+  margin-top: 16px;
+}
+.settings-sec > :last-child {
+  margin-bottom: 16px;
 }
 
 /* A labelled field: the label sits above its input. */
@@ -36,35 +79,56 @@
 }
 .settings-field-label {
   display: block;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--soft);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
   margin-bottom: 6px;
 }
 .settings-field .cell-input {
   width: 100%;
+  max-width: 320px;
   font-size: 13px;
 }
 .settings-field code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--mono);
   font-size: 12px;
-  color: var(--ink);
+  color: var(--text-primary);
 }
 
 /* Helper + the unset nudge — both muted, the nudge a touch fainter. Never the
    danger color (UI-SPEC). */
 .settings-help {
   font-size: 12px;
-  color: var(--soft);
+  color: var(--text-secondary);
   margin: 0 0 14px;
 }
 .settings-nudge {
   font-size: 12px;
-  color: var(--faint);
+  color: var(--text-tertiary);
   margin: 0 0 14px;
 }
 
-/* Stillgelegte Firmen — view-only dead-dimmed rows with a .stp.tot pill. */
+/* Speichern — the secondary .btn recipe. */
+.settings-sec .save {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  height: 32px;
+  padding: 6px 11px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--gray1);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.settings-sec .save:hover {
+  background: var(--gray3);
+}
+
+/* Stillgelegte Firmen — view-only dead-dimmed rows with a Twenty .tag pill. */
 .still-list {
   list-style: none;
   margin: 0;
@@ -76,40 +140,66 @@
   justify-content: space-between;
   gap: 10px;
   padding: 8px 0;
-  border-bottom: 1px dashed var(--line);
+  border-bottom: 1px solid var(--border-light);
 }
 .still-row:last-child {
   border-bottom: none;
 }
 .still-name {
-  color: var(--dead);
+  color: var(--text-tertiary);
   font-size: 13px;
 }
 
 .settings-empty-h {
   font-size: 13.5px;
   font-weight: 600;
-  color: var(--soft);
+  color: var(--text-secondary);
   margin-bottom: 4px;
 }
 .settings-empty-b {
   font-size: 12.5px;
-  color: var(--faint);
+  color: var(--text-tertiary);
   line-height: 1.45;
 }
 
-/* Daten danger zone — the lead-in carries the muted-danger ink so the section
-   reads as restrained-destructive without shouting. The button reuses .del-yes;
-   :disabled mirrors the established ~0.45 opacity gate. */
+/* Daten danger card — red border + red title (mockup .card.danger). */
+.settings-sec[data-section="daten"] {
+  border-color: var(--red5);
+}
+.settings-sec[data-section="daten"] h4 {
+  color: var(--red11);
+}
+
+/* The danger lead-in carries the muted-danger ink. */
 .settings-danger-lead {
-  font-size: 12.5px;
-  color: #b3261e;
+  font-size: 13px;
+  color: var(--red11);
   margin: 0 0 12px;
 }
 .settings-sec .danger-zone {
   margin-top: 0;
   padding-top: 0;
   border-top: none;
+}
+
+/* Clear-all — the .btn-danger recipe (red fill, white text + icon). */
+.settings-sec .del-yes {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  height: 32px;
+  padding: 6px 11px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--red);
+  background: var(--red);
+  color: #fff;
+  cursor: pointer;
+}
+.settings-sec .del-yes:hover:not(:disabled) {
+  filter: brightness(0.95);
 }
 .settings-sec .del-yes:disabled {
   opacity: 0.45;

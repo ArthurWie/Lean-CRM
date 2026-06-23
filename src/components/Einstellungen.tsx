@@ -9,6 +9,7 @@
 // local UI state (active section, the controlled name draft, the confirm-word
 // input). Reuses existing direction-B classes — no new color/font/radius.
 import { useState } from "react";
+import { IconTrash } from "@tabler/icons-react";
 import type { Company } from "../data/companies";
 import "./Einstellungen.css";
 
@@ -120,7 +121,14 @@ export function Einstellungen({
               {stillgelegte.map((c) => (
                 <li key={c.id} className="still-row row-dead">
                   <span className="still-name">{c.name}</span>
-                  <span className="stp tot">{c.status}</span>
+                  <span
+                    className={
+                      c.status === "Geparkt" ? "tag t-geparkt" : "tag t-tot"
+                    }
+                  >
+                    <span className="dot" />
+                    {c.status}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -158,6 +166,7 @@ export function Einstellungen({
               disabled={!armed}
               onClick={onClearAll}
             >
+              <IconTrash size={16} />
               Alle Daten löschen
             </button>
           </div>
