@@ -28,6 +28,18 @@ import "./FocusView.css";
 
 const EMPTY = "—";
 
+// Phase 07 (RDS-03): deterministic cosmetic avatar tint — a verbatim copy of
+// CompanyTable's hash + palette so the focus card matches the table's tiles. Pure;
+// no state, no data layer (DATA-02 holds — this is a string transform only).
+const AVATAR_COLORS = ["#3e63dd", "#30a46c", "#8e4ec6", "#f76b15", "#0091c4"];
+function avatarColor(name: string): string {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) {
+    h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  }
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+
 type Props = {
   // The fixed ordered stream from getFocusSnapshot. Y (counter denominator) =
   // snapshot.length, stable for the whole session (D-07).
@@ -219,9 +231,17 @@ export function FocusView({
         </div>
 
         <div className="focus-head">
-          <div className="focus-name">
-            {company.name}
-            {company.heiss && <span className="flame"> 🔥</span>}
+          <div className="focus-title">
+            <span
+              className="avatar"
+              style={{ background: avatarColor(company.name) }}
+            >
+              {company.name.charAt(0).toUpperCase()}
+            </span>
+            <div className="focus-name">
+              {company.name}
+              {company.heiss && <span className="flame"> 🔥</span>}
+            </div>
           </div>
           <div className="focus-meta">
             {company.branche || EMPTY} · {company.groesse || EMPTY}

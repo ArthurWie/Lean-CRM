@@ -53,6 +53,20 @@
   flex-direction: column;
   gap: 4px;
 }
+/* Phase 07 (RDS-03): avatar tile sits beside the 22px name. The base .avatar
+   (grid/center/white text) comes from CompanyTable.css app-wide; only size +
+   radius are set here for the focus card. */
+.focus-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.focus-head .avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-md);
+  font-size: 14px;
+}
 .focus-name {
   font-size: 22px;
   font-weight: 600;
