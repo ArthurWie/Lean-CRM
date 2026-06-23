@@ -5,23 +5,54 @@
    dead-row dimming. min-width:1180px is what enables horizontal scroll
    (RESEARCH Pitfall 5); .tw uses overflow:auto, never overflow:hidden. */
 
+/* Phase 07 — Twenty design tokens (sRGB, ported value-for-value from the
+   approved mockup head.css lines 5-29; donor = twenty-ui theme constants).
+   This single :root block is shared app-wide via the bundle, replacing the
+   direction-B violet tokens. The back-compat aliases at the end repoint the old
+   direction-B names onto Twenty values so existing selectors keep resolving
+   (UI-SPEC Migration Note 2, option a). No remote @import — values are literal hex. */
 :root {
-  --bg: #fbfbfd;
-  --surface: #fff;
-  --ink: #1c1f2a;
-  --soft: #5b6172;
-  --faint: #9499a6;
-  --line: #e6e7ec;
-  --line2: #f3f3f6;
-  --accent: #6366f1;
-  --accent-soft: #eef0ff;
-  --hot: #c0392b;
-  --hot-soft: #fdecec;
-  --green: #2b7a4b;
-  --green-soft: #e9f5ee;
-  --amber: #b45309;
-  --amber-soft: #fff4e5;
-  --dead: #9499a6;
+  --gray1:#ffffff;--gray2:#fcfcfc;--gray3:#f9f9f9;--gray4:#f1f1f1;--gray5:#ebebeb;
+  --gray6:#d6d6d6;--gray7:#cccccc;--gray8:#b3b3b3;--gray9:#999999;--gray10:#838383;
+  --gray11:#666666;--gray12:#333333;
+
+  --blue:#3e63dd;--blue-hover:#3358d4;--blue11:#3a5bc7;
+  --blue-pale:#d2deff;--blue-pale2:#e1e9ff;--blue-bg:#edf2fe;--blue1:#fdfdfe;
+  --red:#e5484d;--red-bg:#ffeff0;--red5:#f9c6c9;--red11:#ce2c31;
+  --green:#30a46c;--green-bg:#e9f6ee;--green11:#218358;
+  --amber:#ffc53d;--amber-bg:#fff8d4;--amber11:#9e6c00;
+  --orange:#f76b15;--orange-bg:#ffe8d4;--orange11:#bd4b00;
+  --purple:#8e4ec6;--purple-bg:#f4ebfb;--purple11:#8145b5;
+  --sky-bg:#e1f0fb;--sky11:#00749e;
+
+  --bg-primary:var(--gray1);--bg-secondary:var(--gray2);--bg-tertiary:var(--gray4);
+  --border-strong:var(--gray6);--border-medium:var(--gray5);--border-light:var(--gray4);
+  --text-primary:var(--gray12);--text-secondary:var(--gray11);--text-tertiary:var(--gray9);--text-light:var(--gray8);
+
+  --font:'Inter',system-ui,'Segoe UI',sans-serif;
+  --mono:'DM Mono',ui-monospace,'SFMono-Regular',monospace;
+  --r-xs:2px;--r-sm:4px;--r-md:8px;--r-xl:20px;--r-pill:999px;
+  --shadow-light:0px 2px 4px 0px rgba(0,0,0,.04),0px 0px 4px 0px rgba(0,0,0,.08);
+  --shadow-strong:2px 4px 16px 0px rgba(0,0,0,.12),0px 2px 4px 0px rgba(0,0,0,.08);
+  --shadow-modal:0px 0px 8px 0px rgba(0,0,0,.10),0px 8px 64px -16px rgba(0,0,0,.18),0px 24px 56px -16px rgba(0,0,0,.10);
+
+  /* Back-compat repoints: old direction-B names → Twenty values, so the
+     not-yet-migrated component selectors keep resolving until Plans 02-06
+     migrate them. */
+  --bg:var(--gray4);
+  --surface:var(--gray1);
+  --ink:var(--gray12);
+  --soft:var(--text-secondary);
+  --faint:var(--text-tertiary);
+  --line:var(--border-light);
+  --line2:var(--gray3);
+  --accent:var(--blue);
+  --accent-soft:var(--blue-bg);
+  --hot:var(--red11);
+  --hot-soft:var(--red-bg);
+  --green-soft:var(--green-bg);
+  --amber-soft:var(--amber-bg);
+  --dead:var(--gray9);
 }
 
 /* Toolbar (render-only chrome for layout fidelity; only Tot/Geparkt is wired) */
