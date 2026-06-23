@@ -22,6 +22,7 @@ import type { Contact } from "../data/companies";
 import type { Interaction } from "../data/interactions";
 import { LogForm, type LogEntry } from "./LogForm";
 import { openTel, openMail, openLinkedIn } from "../lib/contactActions";
+import { IconPhone, IconMail, IconBrandLinkedin } from "@tabler/icons-react";
 import { shortDate } from "../utils/date";
 import "./FocusView.css";
 
@@ -211,6 +212,12 @@ export function FocusView({
           Firma {counterX} von {total}
         </div>
 
+        {/* 4px accent progress bar — purely visual, derived from the existing
+            counterX/total cursor state (no new logic). */}
+        <div className="pbar">
+          <i style={{ width: (counterX / total) * 100 + "%" }} />
+        </div>
+
         <div className="focus-head">
           <div className="focus-name">
             {company.name}
@@ -252,6 +259,7 @@ export function FocusView({
             title={primary?.telefon ?? undefined}
             onClick={() => primary?.telefon && openTel(primary.telefon)}
           >
+            <IconPhone size={20} />
             Anrufen
           </button>
           <button
@@ -261,6 +269,7 @@ export function FocusView({
             title={primaryEmail ?? undefined}
             onClick={() => primaryEmail && openMail(primaryEmail)}
           >
+            <IconMail size={16} />
             Mail
           </button>
           <button
@@ -270,6 +279,7 @@ export function FocusView({
             title={primary?.linkedin ?? undefined}
             onClick={() => primary?.linkedin && openLinkedIn(primary.linkedin)}
           >
+            <IconBrandLinkedin size={16} />
             in
           </button>
         </div>
