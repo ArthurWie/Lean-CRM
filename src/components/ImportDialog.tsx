@@ -13,6 +13,7 @@
 // the absence is the mitigation (a malicious "<img onerror>" company name renders
 // as inert text, never as DOM).
 import { useEffect } from "react";
+import { IconUpload, IconCheck } from "@tabler/icons-react";
 import type { ClassifiedRow, RawRow } from "../data/import";
 import "./ImportDialog.css";
 
@@ -143,7 +144,12 @@ export function ImportDialog({ mode, rows, onConfirm, onClose }: Props) {
       >
         {/* error mode carries its title inside the .state-error block (5a), so the
             shell title is suppressed to avoid duplicating "Falsches Dateiformat". */}
-        {mode !== "error" && <h2 className="imp-title">{title}</h2>}
+        {mode !== "error" && (
+          <h2 className="imp-title">
+            <IconUpload size={16} />
+            {title}
+          </h2>
+        )}
 
         {mode === "error" ? (
           <div className="state-error imp-error-body" role="alert">
@@ -198,6 +204,7 @@ export function ImportDialog({ mode, rows, onConfirm, onClose }: Props) {
                 disabled={nNeu === 0}
                 onClick={() => onConfirm(grouped.neu.map((r) => r.row))}
               >
+                <IconCheck size={16} />
                 Bestätigen
               </button>
               <button type="button" className="cancel imp-cancel" onClick={onClose}>

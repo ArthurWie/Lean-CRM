@@ -1,9 +1,10 @@
-/* ImportDialog.css — the NEW modal/dialog primitive (UI-SPEC §"Modal/dialog
-   primitive"), shared by the import preview, report, and wrong-file error. The
-   app had no dialog before this phase; this is the minimal on-system surface.
-   Tokens are reused from CompanyTable.css :root — no new palette, no new spacing
-   beyond the values the spec already names. Buttons reuse the global .addbtn /
-   .cancel / .empty-b / .state-error classes; only the shell + group list is new. */
+/* ImportDialog.css — the shared modal shell for the CSV-import preview, report,
+   and wrong-file error, restyled to Twenty (RDS-03). Consumes the shared Twenty
+   :root tokens from CompanyTable.css (do NOT redefine :root here). Keeps the
+   existing class names and the existing ~560px width (NOT the mockup's 760px):
+   a Twenty scrim, the .modal shell (--shadow-modal, --r-md, overflow hidden), a
+   header row with a bottom hairline + IconUpload gap, stat emphasis on
+   green11/amber11, and .btn-primary/.btn footer buttons. Restyle only. */
 
 .imp-scrim {
   position: fixed;
@@ -12,45 +13,64 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  /* derived from the existing rgba(20,20,40,…) shadow family — not a new black */
-  background: rgba(20, 20, 40, 0.28);
+  background: rgba(31, 45, 92, 0.18);
   padding: 24px;
 }
 
 .imp-card {
-  background: var(--surface);
-  border: 1px solid #ececf1;
-  border-radius: 12px; /* peer of the table card (14px) / inner buttons (8px) */
-  box-shadow: 0 6px 20px rgba(20, 20, 40, 0.14); /* reuse the .ctxmenu shadow */
+  background: var(--gray1);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-modal);
   max-width: 560px;
   width: 100%;
-  padding: 22px 26px; /* matches .main padding */
+  overflow: hidden;
+  padding: 22px 26px;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
+/* Header row — 16px/600 with an icon gap and a bottom hairline (mockup .modal-h).
+   Negative margins pull the hairline to the card edges over the 26px padding. */
 .imp-title {
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.3px; /* mirrors .head h1 */
-  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+  color: var(--text-primary);
+  margin: -22px -26px 2px;
+  padding: 16px 26px;
+  border-bottom: 1px solid var(--border-light);
+}
+.imp-title svg {
+  color: var(--gray9);
+  flex-shrink: 0;
 }
 
 .imp-summary {
-  font-size: 13.5px;
-  color: var(--ink);
+  font-size: 13px;
+  color: var(--text-primary);
 }
 .imp-summary strong {
   font-weight: 600;
 }
+/* Stat emphasis — neu reads green, dupe amber (mockup .imp-stat .neu/.dupe).
+   The preview summary lists neu first, then the duplicate count. */
+.imp-summary strong:first-of-type {
+  color: var(--green11);
+}
+.imp-summary strong:nth-of-type(2) {
+  color: var(--amber11);
+}
 .imp-summary-error {
-  color: var(--hot);
+  color: var(--red11);
   font-weight: 600;
   font-size: 12.5px;
 }
 
-/* Scrollable itemized body (UI-SPEC: max-height 50vh, overflow auto). */
+/* Scrollable itemized body (max-height 50vh, overflow auto). */
 .imp-body {
   max-height: 50vh;
   overflow: auto;
@@ -62,11 +82,11 @@
 .imp-group-h {
   font-size: 12.5px;
   font-weight: 600;
-  color: var(--ink);
+  color: var(--text-primary);
   margin-bottom: 6px;
 }
 .imp-group-count {
-  color: var(--soft);
+  color: var(--text-secondary);
   font-weight: 600;
 }
 
@@ -82,71 +102,71 @@
   align-items: baseline;
   gap: 12px;
   padding: 4px 0;
-  border-top: 1px solid var(--line2);
+  border-top: 1px solid var(--border-light);
   font-size: 12.5px;
 }
 .imp-name {
-  color: var(--ink);
+  color: var(--text-primary);
   min-width: 0;
 }
 .imp-reason {
-  color: var(--soft);
+  color: var(--text-secondary);
   font-size: 11.5px;
   white-space: nowrap;
   flex-shrink: 0;
 }
 
-/* Duplikate are neutral (--soft); no special block treatment. */
+/* Duplikate are neutral; no special block treatment. */
 .imp-group[data-testid="group-duplikat"] .imp-name {
-  color: var(--soft);
+  color: var(--text-secondary);
 }
 
-/* Nicht kontaktieren — the LOUD Tot-only callout (D-04): --hot on --hot-soft, a
+/* Nicht kontaktieren — the LOUD Tot-only callout (D-04): --red on --red-bg, a
    bold sub-heading; text carries the alarm (no icon/emoji, UI-02). */
 .imp-group-hot {
-  background: var(--hot-soft);
-  border: 1px solid #f0c9c9;
-  border-radius: 8px;
+  background: var(--red-bg);
+  border: 1px solid var(--red5);
+  border-radius: var(--r-md);
   padding: 10px 12px;
 }
 .imp-group-hot .imp-group-h {
-  color: var(--hot);
+  color: var(--red11);
   font-weight: 700;
 }
 .imp-group-hot .imp-item {
-  border-top-color: #f3cfcc;
+  border-top-color: var(--red5);
 }
 .imp-group-hot .imp-name,
 .imp-group-hot .imp-reason {
-  color: var(--hot);
+  color: var(--red11);
 }
 
-/* Fehlerhaft — established .state-error pairing (text/border/bg). */
+/* Fehlerhaft — the --red error pairing (text/border/bg). */
 .imp-group-error {
-  background: #fdecec;
-  border: 1px solid #f0c9c9;
-  border-radius: 8px;
+  background: var(--red-bg);
+  border: 1px solid var(--red5);
+  border-radius: var(--r-md);
   padding: 10px 12px;
 }
 .imp-group-error .imp-group-h,
 .imp-group-error .imp-name,
 .imp-group-error .imp-reason {
-  color: var(--hot);
+  color: var(--red11);
 }
 .imp-group-error .imp-item {
-  border-top-color: #f3cfcc;
+  border-top-color: var(--red5);
 }
 
 .imp-empty {
   font-size: 12.5px;
-  color: var(--faint);
+  color: var(--text-tertiary);
 }
 
 .imp-error-body {
   /* .state-error provides border/bg/radius/padding; nothing extra needed */
 }
 
-/* Footer — right-aligned action row mirroring .addrow-actions. */
+/* Footer — right-aligned action row. */
 .imp-actions {
   display: flex;
   justify-content: flex-end;
@@ -154,7 +174,46 @@
   gap: 8px;
   margin-top: 4px;
 }
+
+/* Confirm — the .btn-primary recipe (blue fill, white text + icon). */
+.imp-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  height: 32px;
+  padding: 6px 11px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--blue);
+  background: var(--blue);
+  color: #fff;
+  cursor: pointer;
+}
+.imp-confirm:hover:not(:disabled) {
+  background: var(--blue-hover);
+}
 .imp-confirm:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+/* Abbrechen / Schließen — the secondary .btn recipe. */
+.imp-cancel,
+.imp-close {
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  height: 32px;
+  padding: 6px 11px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--gray1);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.imp-cancel:hover,
+.imp-close:hover {
+  background: var(--gray3);
 }
