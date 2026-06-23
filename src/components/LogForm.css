@@ -1,92 +1,92 @@
-/* LogForm.css — the logging form (.log) ported from lean-crm-mockup.html
-   lines 102-116 to design direction B (Linear / SaaS). STRUCTURE + German copy
-   come from the mockup; COLORS + radii are direction B — the :root tokens are
-   declared in CompanyTable.css (loaded app-wide): violet --accent #6366f1,
-   --surface #fff, hairline --line #e6e7ec, 8px controls / 7px chips. The mockup's
-   2px corners are superseded (D-09); do NOT reintroduce them. */
+/* LogForm.css — the logging form (.log), restyled to the Twenty design system
+   (Phase 7). STRUCTURE + German copy carry over; COLORS + radii are the Twenty
+   :root tokens declared in CompanyTable.css (loaded app-wide). The channel +
+   outcome groups render as Twenty segmented controls: unselected = --gray1 bg +
+   --border-strong border + --text-secondary text; selected (.s) = the pale-accent
+   recipe (--blue-bg bg + --blue border + --blue11 text). Inputs use the Twenty
+   focus ring; Speichern is the one primary button. 🔥 stays a literal emoji. */
 
 .log {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 14px;
+  background: var(--gray1);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--r-md);
+  padding: 16px;
   margin-top: 6px;
 }
 
-/* Channel buttons — full-width segmented row */
+/* Channel buttons — full-width Twenty segmented row */
 .log .ch {
   display: flex;
   gap: 6px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 .chb {
   flex: 1;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  border-radius: 8px;
-  padding: 7px;
+  border: 1px solid var(--border-strong);
+  background: var(--gray1);
+  border-radius: var(--r-sm);
+  padding: 6px 12px;
   cursor: pointer;
   text-align: center;
-  font-weight: 600;
-  color: var(--soft);
-  font-size: 12.5px;
-  font-family: inherit;
+  font-weight: 500;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-family: var(--font);
 }
 .chb:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  background: var(--gray3);
 }
 .chb.s {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent);
+  border-color: var(--blue);
+  background: var(--blue-bg);
+  color: var(--blue11);
 }
 
-/* Channel-specific outcome chips */
+/* Channel-specific outcome chips — Twenty segmented control */
 .out {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 .ob {
-  border: 1px solid var(--line);
-  background: var(--bg);
-  border-radius: 7px;
-  padding: 5px 11px;
+  border: 1px solid var(--border-strong);
+  background: var(--gray1);
+  border-radius: var(--r-sm);
+  padding: 6px 12px;
   cursor: pointer;
-  font-size: 12px;
-  color: var(--soft);
-  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  font-family: var(--font);
 }
 .ob:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  background: var(--gray3);
 }
 .ob.s {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-weight: 600;
+  border-color: var(--blue);
+  background: var(--blue-bg);
+  color: var(--blue11);
 }
 
-/* One-sentence note */
+/* One-sentence note — Twenty .inp with focus ring */
 .log textarea.n {
   width: 100%;
   box-sizing: border-box;
   min-height: 48px;
   resize: vertical;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 9px 11px;
-  font-family: inherit;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  padding: 8px 11px;
+  font-family: var(--font);
   font-size: 13px;
-  color: var(--ink);
-  background: var(--surface);
+  color: var(--gray12);
+  background: var(--gray1);
 }
 .log textarea.n:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px var(--blue-bg);
 }
 
 /* Follow-up + 🔥 row */
@@ -101,65 +101,70 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--soft);
-  font-size: 12.5px;
+  color: var(--text-secondary);
+  font-size: 13px;
 }
 .fu select {
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
   padding: 5px 7px;
-  font-family: inherit;
-  font-size: 12.5px;
-  background: var(--surface);
-  color: var(--ink);
+  font-family: var(--font);
+  font-size: 13px;
+  background: var(--gray1);
+  color: var(--gray12);
 }
 .fu .fudate {
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
   padding: 4px 7px;
-  font-family: inherit;
-  font-size: 12.5px;
+  font-family: var(--font);
+  font-size: 13px;
 }
 .hotmark {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--soft);
-  font-size: 12.5px;
+  color: var(--text-secondary);
+  font-size: 13px;
   cursor: pointer;
 }
 
 /* Bearbeiter line (D-08) */
 .logby {
-  margin-top: 10px;
+  margin-top: 12px;
   padding-top: 10px;
-  border-top: 1px dashed var(--line);
+  border-top: 1px solid var(--border-light);
   font-size: 12px;
-  color: var(--soft);
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
   gap: 6px;
 }
 .logby b {
-  color: var(--accent);
+  color: var(--blue11);
 }
 /* Unset-bearbeiter nudge: informational, more muted than the name line — never
    the danger color (UI-SPEC). */
 .logby-nudge {
-  color: var(--faint);
+  color: var(--text-tertiary);
 }
 
-/* Speichern */
+/* Speichern — the one primary Twenty button on this surface */
 .save {
-  margin-top: 10px;
-  background: var(--accent);
+  margin-top: 12px;
+  background: var(--blue);
   color: #fff;
-  border: none;
-  border-radius: 8px;
+  border: 1px solid var(--blue);
+  border-radius: var(--r-sm);
   padding: 8px 15px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   font-size: 13px;
+  font-family: var(--font);
+}
+.save:hover:not(:disabled) {
+  background: var(--blue-hover);
+  border-color: var(--blue-hover);
 }
 .save:disabled {
   opacity: 0.5;
@@ -169,10 +174,10 @@
 /* The "Daraus wird gesetzt: …" derive hint */
 .derive {
   font-size: 11.5px;
-  color: var(--green);
-  background: var(--green-soft);
-  border-radius: 8px;
+  color: var(--green11);
+  background: var(--green-bg);
+  border-radius: var(--r-sm);
   padding: 8px 11px;
-  margin-top: 10px;
+  margin-top: 12px;
   line-height: 1.5;
 }
