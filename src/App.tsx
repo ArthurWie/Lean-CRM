@@ -2,7 +2,16 @@
 // data layer, and render the sidebar + head + toolbar chrome around the
 // CompanyTable. App.tsx imports the data layer ONLY — never drizzle or the
 // schema (DATA-02). The table itself is CompanyTable (Plan 02).
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import {
+  IconChevronDown,
+  IconSearch,
+  IconDatabase,
+  IconTargetArrow,
+  IconSettings,
+  IconUpload,
+  IconPlus,
+} from "@tabler/icons-react";
 import {
   addCompany,
   deleteCompany,
@@ -84,6 +93,14 @@ function App() {
     mode: ImportDialogMode;
     rows: ClassifiedRow[];
   } | null>(null);
+  // Phase 07 (RDS-02): the topbar Import button drives this hidden file input
+  // (moved up from CompanyTable's toolbar) → handleImport. App owns the read/parse
+  // (DATA-02); the input is just a picker.
+  const importInputRef = useRef<HTMLInputElement>(null);
+  // Phase 07 (RDS-02): a lifted request nonce. The topbar "Neue Firma" button bumps
+  // it; CompanyTable consumes the change to open its add-draft row (Plan 02). App
+  // only emits the counter — no data-layer call, so DATA-02 holds.
+  const [addRequest, setAddRequest] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -457,21 +474,35 @@ function App() {
   return (
     <div className="app">
       <aside className="sidebar">
-        <div className="brand">
-          <span className="dot" /> Lean CRM
+        {/* Workspace switcher (render-only chrome) */}
+        <div className="ws">
+          <div className="ws-logo">L</div>
+          <div className="ws-name">Lean CRM</div>
+          <IconChevronDown size={16} className="ws-chev" />
         </div>
+        {/* Search row (render-only — no handler wired in this phase) */}
+        <div className="side-search">
+          <IconSearch size={16} />
+          Suchen…
+          <kbd>⌘K</kbd>
+        </div>
+
+        <div className="side-sec">Arbeitsbereich</div>
         <button
           className={view === "db" ? "nav active" : "nav"}
           type="button"
           onClick={handleCloseFocus}
         >
+          <IconDatabase size={16} />
           Datenbank
+          <span className="count">{companies.length}</span>
         </button>
         <button
           className={view === "focus" ? "nav active" : "nav"}
           type="button"
           onClick={handleOpenFocus}
         >
+          <IconTargetArrow size={16} />
           Fokus
         </button>
         <button
@@ -479,25 +510,84 @@ function App() {
           type="button"
           onClick={() => setView("settings")}
         >
+          <IconSettings size={16} />
           Einstellungen
         </button>
-        <div className="nav-foot">
-          {/* D6-01: the clear-all moved OUT of the sidebar footer into the
-              Einstellungen Daten danger zone, behind a type-to-confirm word. */}
-          <div className="nav-foot-meta">
-            Lean v3
-            <br />
-            Tel/Mail/LinkedIn klickbar. Zeile anklicken zum Eintragen.
-          </div>
+
+        {/* Status quick-filters (render-only per the mockup — no wiring yet) */}
+        <div className="side-sec">Status</div>
+        <button className="nav" type="button">
+          <span className="dot" style={{ background: "var(--amber)" }} />
+          Wiedervorlage
+        </button>
+        <button className="nav" type="button">
+          <span className="dot" style={{ background: "var(--green)" }} />
+          Interessiert
+        </button>
+        <button className="nav" type="button">
+          <span className="dot" style={{ background: "var(--red)" }} />
+          Tot
+        </button>
+
+        <div className="side-foot">
+          {/* D6-01: the clear-all lives in the Einstellungen Daten danger zone,
+              behind a type-to-confirm word — not in this footer. */}
+          Lean v3 · lokale SQLite
+          <br />
+          Tel / Mail / in klickbar
         </div>
       </aside>
 
       <main className="main">
-        <div className="head">
-          <div>
-            <h1>{headTitle}</h1>
+        <div className="topbar">
+          <div className="crumb">
+            {view === "focus" ? (
+              <IconTargetArrow size={16} />
+            ) : view === "settings" ? (
+              <IconSettings size={16} />
+            ) : (
+              <IconDatabase size={16} />
+            )}
+            {headTitle}
+            <span className="muted">· {companies.length} Firmen</span>
           </div>
-          <div className="sub">{companies.length} Firmen</div>
+          <div className="spacer" />
+          {/* Import / Neue Firma are list actions — shown only in the Datenbank
+              view, matching the prior behaviour where they lived in the table
+              toolbar. */}
+          {view === "db" && (
+            <>
+              <button
+                className="btn"
+                type="button"
+                onClick={() => importInputRef.current?.click()}
+              >
+                <IconUpload size={16} />
+                Import
+              </button>
+              {/* Hidden file input moved here from CompanyTable's toolbar so the
+                  topbar Import button drives it (DATA-02: App owns handleImport). */}
+              <input
+                ref={importInputRef}
+                type="file"
+                accept=".csv"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (file) handleImport(file);
+                }}
+              />
+              <button
+                className="btn btn-primary"
+                type="button"
+                onClick={() => setAddRequest((n) => n + 1)}
+              >
+                <IconPlus size={16} />
+                Neue Firma
+              </button>
+            </>
+          )}
         </div>
 
         {error ? (
@@ -547,7 +637,7 @@ function App() {
             onDeleteContact={handleDeleteContact}
             onSetContactEmails={handleSetContactEmails}
             onOpenFocus={handleOpenFocus}
-            onImport={handleImport}
+            addRequest={addRequest}
           />
         )}
       </main>

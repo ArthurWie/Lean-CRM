@@ -343,6 +343,11 @@ type Props = {
   // parseCsv → validateHeader → classifyRows → preview. The table never touches
   // the data layer (DATA-02) — it only hands the File up.
   onImport?: (file: File) => void;
+  // Phase 07 (RDS-02): a request nonce bumped by the topbar "Neue Firma" button in
+  // App.tsx. Each increment asks the table to open its add-draft row. Declared here
+  // so App.tsx type-checks now; Plan 02 wires the actual draft-open behaviour. App
+  // never touches the data layer for this — it only emits a counter (DATA-02 holds).
+  addRequest?: number;
   // D6-03: the configured "Erfasst als" name, threaded down to the embedded
   // CompanyDetail → LogForm. Optional (default "") so existing tests get the
   // unset nudge. App supplies the real value (read via settings.ts).
