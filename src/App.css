@@ -49,127 +49,268 @@
   padding: 0;
 }
 body {
-  font-family: "Inter", system-ui, "Segoe UI", sans-serif;
-  background: var(--bg, #fbfbfd);
-  color: var(--ink, #1c1f2a);
-  font-size: 13.5px;
-  line-height: 1.45;
+  font-family: var(--font);
+  background: var(--gray4);
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
+svg {
+  display: block;
+}
+.mono {
+  font-family: var(--mono);
+}
 
+/* ---------- app frame ---------- */
+/* The whole app sits in a rounded card on the --gray4 backdrop, centered and
+   capped at 1280px (Twenty app-frame). The mockup pins a fixed 760px height for
+   the static preview; the live app uses min-height:100vh so it fills the window. */
 .app {
   display: flex;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-light);
   min-height: 100vh;
+  max-width: 1280px;
+  margin: 0 auto;
 }
 
+/* ---------- sidebar (232px, --gray2) ---------- */
 .sidebar {
-  width: 188px;
-  background: #fff;
-  border-right: 1px solid #ececf1;
-  padding: 18px 12px;
-  position: sticky;
-  top: 0;
-  height: 100vh;
+  width: 232px;
+  flex-shrink: 0;
+  background: var(--gray2);
+  border-right: 1px solid var(--border-light);
+  padding: 12px 10px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
-.brand {
+.ws {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 8px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+.ws:hover {
+  background: var(--gray4);
+}
+.ws-logo {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-sm);
+  background: var(--blue);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.ws-name {
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: -0.1px;
+  color: var(--gray12);
+}
+.ws-chev {
+  margin-left: auto;
+  color: var(--gray9);
+}
+.side-search {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 8px 16px;
-  font-weight: 700;
-  font-size: 15px;
-  letter-spacing: -0.2px;
-  color: #181b26;
+  margin: 8px 0 6px;
+  padding: 6px 8px;
+  border-radius: var(--r-sm);
+  color: var(--text-tertiary);
+  font-size: 13px;
+  cursor: pointer;
 }
-.brand .dot {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--accent);
+.side-search:hover {
+  background: var(--gray4);
+}
+.side-search kbd {
+  margin-left: auto;
+  font-family: var(--font);
+  font-size: 11px;
+  color: var(--gray9);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-xs);
+  padding: 0 4px;
+}
+.side-sec {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-light);
+  padding: 10px 8px 4px;
+  letter-spacing: 0.02em;
 }
 .nav {
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 8px 11px;
-  border-radius: 8px;
-  color: #5b6172;
+  padding: 6px 8px;
+  border-radius: var(--r-sm);
+  color: var(--text-secondary);
   font-weight: 500;
+  font-size: 13px;
   cursor: pointer;
   border: none;
   background: none;
   width: 100%;
   text-align: left;
-  font-size: 13.5px;
+  font-family: var(--font);
+}
+.nav svg {
+  color: var(--gray9);
+  flex-shrink: 0;
 }
 .nav:hover {
-  background: #f1f1f6;
-  color: var(--ink);
+  background: var(--gray4);
 }
 .nav.active {
-  background: #f1f1f6;
-  color: var(--accent);
-  font-weight: 600;
+  background: var(--gray4);
+  color: var(--gray12);
 }
-.nav-foot {
+.nav.active svg {
+  color: var(--blue);
+}
+.nav .count {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--gray9);
+  font-weight: 500;
+}
+.nav .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.side-foot {
   margin-top: auto;
   padding: 8px;
   font-size: 11px;
-  color: #b3b7c2;
-  border-top: 1px solid #ececf1;
-}
-/* D-08: the clear-all danger control, low-emphasis above the meta line. The
-   del-trigger/del-yes/del-cancel/confirm-del classes (global, from
-   CompanyDetail.css) carry all the visual styling — only layout is set here. */
-.clear-all {
-  margin-bottom: 8px;
-}
-.nav-foot-meta {
-  font-size: 11px;
-  color: #b3b7c2;
+  color: var(--text-light);
+  border-top: 1px solid var(--border-light);
 }
 
+/* ---------- main + topbar ---------- */
 .main {
   flex: 1;
   min-width: 0;
-  padding: 22px 26px;
-}
-.head {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 16px;
+  flex-direction: column;
 }
-.head h1 {
-  font-size: 18px;
-  letter-spacing: -0.3px;
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-light);
 }
-.head .sub {
-  color: var(--faint);
-  font-size: 12.5px;
+.crumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--gray12);
+}
+.crumb svg {
+  color: var(--gray9);
+}
+.crumb .muted {
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+.topbar .spacer {
+  flex: 1;
+}
+.iconbtn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-sm);
+  border: 1px solid transparent;
+  background: none;
+  color: var(--gray11);
+  cursor: pointer;
+}
+.iconbtn:hover {
+  background: var(--gray4);
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--r-sm);
+  padding: 6px 11px;
+  cursor: pointer;
+  border: 1px solid var(--border-strong);
+  background: var(--gray1);
+  color: var(--gray11);
+  height: 32px;
+  white-space: nowrap;
+}
+.btn:hover {
+  background: var(--gray3);
+}
+.btn svg {
+  color: var(--gray9);
+}
+.btn-primary {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+.btn-primary:hover {
+  background: var(--blue-hover);
+}
+.btn-primary svg {
+  color: #fff;
+}
+.btn-danger {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+.btn-danger:hover {
+  filter: brightness(0.95);
 }
 
+/* ---------- load / error states ---------- */
 .state-loading {
-  color: var(--faint);
+  color: var(--text-tertiary);
   font-size: 13px;
-  padding: 22px 2px;
+  padding: 22px 16px;
 }
 .state-error {
-  border: 1px solid #f0c9c9;
-  background: #fdecec;
-  border-radius: 8px;
-  padding: 13px 15px;
+  margin: 16px;
+  border: 1px solid var(--red5);
+  background: var(--red-bg);
+  border-radius: var(--r-md);
+  padding: 14px 16px;
 }
 .state-error .state-h {
-  color: #c0392b;
-  font-weight: 700;
-  font-size: 13.5px;
+  color: var(--red11);
+  font-weight: 600;
+  font-size: 13px;
   margin-bottom: 4px;
 }
 .state-error .state-b {
-  color: var(--soft);
-  font-size: 12.5px;
+  color: var(--text-secondary);
+  font-size: 13px;
 }
